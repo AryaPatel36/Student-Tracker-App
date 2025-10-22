@@ -1,0 +1,37 @@
+# === Environment Files ===
+.env
+*.env
+
+# === Dependency Folders ===
+node_modules/
+
+# === Build / Cache Files ===
+dist/
+build/
+*.log
+
+# === Database / Local Data ===
+db/*.db
+db/*.sqlite
+db/*.sqlite3
+
+# === IDE / OS Files ===
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# === Backend Specific ===
+backend/node_modules/
+backend/.env
+backend/*.log
+
+# === Frontend Specific ===
+student-tracker-frontend/node_modules/
+student-tracker-frontend/.next/
+student-tracker-frontend/out/
+student-tracker-frontend/build/
+
+# === Docker / Compose (optional) ===
+# Comment this out if you want docker-compose.yml on GitHub
+docker-compose.yml

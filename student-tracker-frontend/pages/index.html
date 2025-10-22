@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css" />
+  <script defer src="../js/auth.js"></script>
+  <script defer src="../js/api.js"></script>
+  <script defer src="../js/ui.js"></script>
+
+  <title>Student Tracker — Login</title>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (Auth.currentUser()) { UI.redirectByRole(Auth.currentUser().role); return; }
+      const form = document.getElementById('login-form');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = form.email.value.trim();
+        const password = form.password.value;
+        const user = await Auth.fakeLogin(email, password); 
+        Auth.setUser(user);
+        UI.redirectByRole(user.role);
+      });
+    });
+  </script>
+  <script>
+  (function(){
+    try{
+      var t = localStorage.getItem('st_theme') || 'aurora';
+      if(t && t !== 'aurora'){ document.documentElement.setAttribute('data-theme', t); }
+    }catch(e){}
+  })();
+  </script>
+</head>
+<body>
+  <div id="nav"></div>
+  <div class="container page">
+    <div class="header">
+      <div>
+        <div class="title">Welcome</div>
+        <div class="subtitle">Sign in to your Student Tracker account</div>
+      </div>
+      <div class="page-actions"></div>
+    </div>
+
+    <div class="card grid-2 grid">
+      <div>
+        <h2>Log in</h2>
+        <form id="login-form" class="grid" style="gap:10px; margin-top:12px;">
+          <label>Email</label>
+          <input required name="email" type="email" placeholder="you@school.edu" />
+          <label>Password</label>
+          <input required name="password" type="password" placeholder="••••••••" />
+          <button class="btn btn-primary">Continue</button>
+        </form>
+        <p class="alert info" style="margin-top:12px;">
+          Demo emails: <strong>admin@</strong>, <strong>instructor@</strong>, <strong>student@</strong> — any password.
+        </p>
+      </div>
+      <div>
+        <h2>Roles</h2>
+        <p><strong>Admin</strong>: manage users</p>
+        <p><strong>Instructor</strong>: manage classes, view roster/attendance</p>
+        <p><strong>Student</strong>: see classes, check-in/out</p>
+      </div>
+    </div>
+  </div>
+  <div class="footer">Student Tracker • SaaS UI</div>
+</body>
+</html>

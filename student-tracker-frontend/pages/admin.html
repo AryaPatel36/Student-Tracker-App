@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css" />
+  <script defer src="../js/auth.js"></script>
+  <script defer src="../js/api.js"></script>
+  <script defer src="../js/ui.js"></script>
+
+  <title>Admin — Dashboard</title>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', async () => {
+      UI.guardRole('ADMIN');
+      UI.mountNav();
+      const me = Auth.currentUser();
+      document.getElementById('greet').textContent = me.fullName;
+      const users = await api.listUsers();
+      UI.renderTable('users-tbody', users, (u) => ([u.id, u.fullName, u.email, u.role]));
+      document.getElementById('create-user-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fullName = e.target.fullName.value.trim();
+        const email = e.target.email.value.trim();
+        const role = e.target.role.value;
+        await api.createUser({ fullName, email, role });
+        location.reload();
+      });
+    });
+  </script>
+  <script>
+  (function(){
+    try{
+      var t = localStorage.getItem('st_theme') || 'aurora';
+      if(t && t !== 'aurora'){ document.documentElement.setAttribute('data-theme', t); }
+    }catch(e){}
+  })();
+  </script>
+</head>
+<body>
+  <div id="nav"></div>
+  <div class="container page">
+    <div class="header">
+      <div><div class="title">Admin Dashboard</div><div class="subtitle">Manage users and roles</div></div>
+      <div class="page-actions"><button class="btn btn-outline" onclick="Auth.logout()">Log out</button></div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card">
+        <h2>Hello, <span id="greet">Admin</span></h2>
+        <table class="table">
+          <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th></tr></thead>
+          <tbody id="users-tbody"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Create User</h2>
+        <form id="create-user-form" class="grid" style="gap:10px;">
+          <label>Full name</label>
+          <input required name="fullName" placeholder="Jordan Doe" />
+          <label>Email</label>
+          <input required name="email" type="email" placeholder="jordan@school.edu" />
+          <label>Role</label>
+          <select name="role">
+            <option value="STUDENT">Student</option>
+            <option value="INSTRUCTOR">Instructor</option>
+            <option value="ADMIN">Admin</option>
+          </select>
+          <button class="btn btn-primary">Create</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="footer">Student Tracker • SaaS UI</div>
+</body>
+</html>

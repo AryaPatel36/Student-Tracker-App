@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css" />
+  <script defer src="../js/auth.js"></script>
+  <script defer src="../js/api.js"></script>
+  <script defer src="../js/ui.js"></script>
+
+  <title>Check-in / Check-out</title>
+  <script defer>
+    async function getGeo() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+          () => resolve(null),
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+        );
+      });
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      UI.guardRole('STUDENT'); UI.mountNav();
+      const params = new URLSearchParams(location.search);
+      const classId = params.get('classId');
+      document.getElementById('classId').textContent = classId;
+      document.getElementById('btn-in').addEventListener('click', async () => { const geo = await getGeo(); await api.checkIn(classId, geo); UI.toast('Checked in.'); });
+      document.getElementById('btn-out').addEventListener('click', async () => { const geo = await getGeo(); await api.checkOut(classId, geo); UI.toast('Checked out.'); });
+    });
+  </script>
+  <script>
+  (function(){
+    try{
+      var t = localStorage.getItem('st_theme') || 'aurora';
+      if(t && t !== 'aurora'){ document.documentElement.setAttribute('data-theme', t); }
+    }catch(e){}
+  })();
+  </script>
+</head>
+<body>
+  <div id="nav"></div>
+  <div class="container page">
+    <div class="header">
+      <div><div class="title">Attendance</div><div class="subtitle">Check in/out with optional geolocation</div></div>
+      <div class="page-actions"><button class="btn btn-outline" onclick="Auth.logout()">Log out</button></div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <div>Class ID: <strong id="classId">–</strong></div>
+        <div class="row" style="gap:8px">
+          <button id="btn-in" class="btn btn-primary">Check-in</button>
+          <button id="btn-out" class="btn btn-outline">Check-out</button>
+        </div>
+      </div>
+      <p class="alert info" style="margin-top:12px;">Allow location to attach coordinates to your entry.</p>
+    </div>
+  </div>
+  <div class="footer">Student Tracker • SaaS UI</div>
+</body>
+</html>

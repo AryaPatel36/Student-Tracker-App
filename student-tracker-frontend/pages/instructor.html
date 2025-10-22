@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css" />
+  <script defer src="../js/auth.js"></script>
+  <script defer src="../js/api.js"></script>
+  <script defer src="../js/ui.js"></script>
+
+  <title>Instructor — Dashboard</title>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', async () => {
+      UI.guardRole('INSTRUCTOR');
+      UI.mountNav();
+      const me = Auth.currentUser();
+      document.getElementById('greet').textContent = me.fullName;
+      const classes = await api.listMyClasses(me);
+      UI.renderTable('classes-tbody', classes, (c) => ([c.id, c.title, c.term, `<a href="class.html?id=${c.id}">Roster & Attendance</a>`]));
+      document.getElementById('create-class-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const title = e.target.title.value.trim();
+        const term = e.target.term.value.trim();
+        await api.createClass({ title, term });
+        location.reload();
+      });
+    });
+  </script>
+  <script>
+  (function(){
+    try{
+      var t = localStorage.getItem('st_theme') || 'aurora';
+      if(t && t !== 'aurora'){ document.documentElement.setAttribute('data-theme', t); }
+    }catch(e){}
+  })();
+  </script>
+</head>
+<body>
+  <div id="nav"></div>
+  <div class="container page">
+    <div class="header">
+      <div><div class="title">Instructor Dashboard</div><div class="subtitle">Create classes, view rosters, and attendance</div></div>
+      <div class="page-actions"><button class="btn btn-outline" onclick="Auth.logout()">Log out</button></div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card">
+        <h2>Hello, <span id="greet">Instructor</span></h2>
+        <table class="table">
+          <thead><tr><th>ID</th><th>Title</th><th>Term</th><th>Manage</th></tr></thead>
+          <tbody id="classes-tbody"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Create Class</h2>
+        <form id="create-class-form" class="grid" style="gap:10px;">
+          <label>Title</label>
+          <input required name="title" placeholder="CSCI 1010" />
+          <label>Term</label>
+          <input required name="term" placeholder="Fall 2025" />
+          <button class="btn btn-primary">Create</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="footer">Student Tracker • SaaS UI</div>
+</body>
+</html>

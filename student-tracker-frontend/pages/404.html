@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css" />
+  <script defer src="../js/auth.js"></script>
+  <script defer src="../js/api.js"></script>
+  <script defer src="../js/ui.js"></script>
+
+  <title>Not Found</title>
+  <script>
+  (function(){
+    try{
+      var t = localStorage.getItem('st_theme') || 'aurora';
+      if(t && t !== 'aurora'){ document.documentElement.setAttribute('data-theme', t); }
+    }catch(e){}
+  })();
+  </script>
+</head>
+<body>
+  <div id="nav"></div>
+  <div class="container page">
+    <div class="header">
+      <div><div class="title">404</div><div class="subtitle">Page not found</div></div>
+      <div class="page-actions"></div>
+    </div>
+    <div class="card">
+      <p>Return to <a href="index.html">home</a>.</p>
+    </div>
+  </div>
+  <div class="footer">Student Tracker</div>
+</body>
+</html>

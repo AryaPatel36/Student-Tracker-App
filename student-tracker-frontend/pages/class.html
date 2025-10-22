@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css" />
+  <script defer src="../js/auth.js"></script>
+  <script defer src="../js/api.js"></script>
+  <script defer src="../js/ui.js"></script>
+
+  <title>Class Detail</title>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', async () => {
+      UI.guardRole('INSTRUCTOR','ADMIN'); UI.mountNav();
+      const params = new URLSearchParams(location.search);
+      const id = params.get('id');
+      const cls = await api.getClass(id);
+      document.getElementById('title').textContent = `${cls.title} — ${cls.term}`;
+      const roster = await api.getRoster(id);
+      UI.renderTable('roster-tbody', roster, (s) => ([s.id, s.fullName, s.email]));
+      const rows = await api.getAttendance(id);
+      UI.renderTable('attendance-tbody', rows, (a) => ([
+        a.id,
+        a.full_name ?? a.fullName ?? a.studentName ?? "Student",
+        new Date(a.check_in_time ?? a.checkInTime).toLocaleString(),
+        a.check_out_time ? new Date(a.check_out_time).toLocaleString() : '—',
+        a.check_in_lat && a.check_in_lon ? `${a.check_in_lat.toFixed(5)}, ${a.check_in_lon.toFixed(5)}` : '—',
+        a.check_out_lat && a.check_out_lon ? `${a.check_out_lat.toFixed(5)}, ${a.check_out_lon.toFixed(5)}` : '—',
+        a.method || '—'
+      ]));
+    });
+  </script>
+  <script>
+  (function(){
+    try{
+      var t = localStorage.getItem('st_theme') || 'aurora';
+      if(t && t !== 'aurora'){ document.documentElement.setAttribute('data-theme', t); }
+    }catch(e){}
+  })();
+  </script>
+</head>
+<body>
+  <div id="nav"></div>
+  <div class="container page">
+    <div class="header">
+      <div><div id="title" class="title">Class</div><div class="subtitle">Roster and attendance overview</div></div>
+      <div class="page-actions"><button class="btn btn-outline" onclick="Auth.logout()">Log out</button></div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card">
+        <h2>Roster</h2>
+        <table class="table">
+          <thead><tr><th>ID</th><th>Name</th><th>Email</th></tr></thead>
+          <tbody id="roster-tbody"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Attendance</h2>
+        <table class="table">
+          <thead><tr><th>ID</th><th>Student</th><th>Check-in</th><th>Check-out</th><th>In Lat/Lon</th><th>Out Lat/Lon</th><th>Method</th></tr></thead>
+          <tbody id="attendance-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="footer">Student Tracker • SaaS UI</div>
+</body>
+</html>

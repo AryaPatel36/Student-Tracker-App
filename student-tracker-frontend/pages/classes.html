@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css" />
+  <script defer src="../js/auth.js"></script>
+  <script defer src="../js/api.js"></script>
+  <script defer src="../js/ui.js"></script>
+
+  <title>My Classes</title>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', async () => {
+      UI.requireAuth(); UI.mountNav();
+      const me = Auth.currentUser();
+      const classes = await api.listMyClasses(me);
+      UI.renderTable('classes-tbody', classes, (c) => ([
+        c.id, c.title, c.term,
+        me.role === 'INSTRUCTOR' ? `<a href="class.html?id=${c.id}">Manage</a>` : `<a href="checkin.html?classId=${c.id}">Check-in</a>`
+      ]));
+    });
+  </script>
+  <script>
+  (function(){
+    try{
+      var t = localStorage.getItem('st_theme') || 'aurora';
+      if(t && t !== 'aurora'){ document.documentElement.setAttribute('data-theme', t); }
+    }catch(e){}
+  })();
+  </script>
+</head>
+<body>
+  <div id="nav"></div>
+  <div class="container page">
+    <div class="header">
+      <div><div class="title">My Classes</div><div class="subtitle">Your current classes and quick actions</div></div>
+      <div class="page-actions"><button class="btn btn-outline" onclick="Auth.logout()">Log out</button></div>
+    </div>
+    <div class="card">
+      <table class="table">
+        <thead><tr><th>ID</th><th>Title</th><th>Term</th><th>Action</th></tr></thead>
+        <tbody id="classes-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="footer">Student Tracker • SaaS UI</div>
+</body>
+</html>
