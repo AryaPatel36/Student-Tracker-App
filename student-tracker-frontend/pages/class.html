@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,56 +10,38 @@
   <script defer src="../js/auth.js"></script>
   <script defer src="../js/api.js"></script>
   <script defer src="../js/ui.js"></script>
-
   <title>Class Detail</title>
-  <script defer>
-    document.addEventListener('DOMContentLoaded', async () => {
-      UI.guardRole('INSTRUCTOR','ADMIN'); UI.mountNav();
-      const params = new URLSearchParams(location.search);
-      const id = params.get('id');
-      const cls = await api.getClass(id);
-      document.getElementById('title').textContent = `${cls.title} — ${cls.term}`;
-      const roster = await api.getRoster(id);
-      UI.renderTable('roster-tbody', roster, (s) => ([s.id, s.fullName, s.email]));
-      const rows = await api.getAttendance(id);
-      UI.renderTable('attendance-tbody', rows, (a) => ([
-        a.id,
-        a.full_name ?? a.fullName ?? a.studentName ?? "Student",
-        new Date(a.check_in_time ?? a.checkInTime).toLocaleString(),
-        a.check_out_time ? new Date(a.check_out_time).toLocaleString() : '—',
-        a.check_in_lat && a.check_in_lon ? `${a.check_in_lat.toFixed(5)}, ${a.check_in_lon.toFixed(5)}` : '—',
-        a.check_out_lat && a.check_out_lon ? `${a.check_out_lat.toFixed(5)}, ${a.check_out_lon.toFixed(5)}` : '—',
-        a.method || '—'
-      ]));
-    });
-  </script>
-  <script>
-  (function(){
-    try{
-      var t = localStorage.getItem('st_theme') || 'aurora';
-      if(t && t !== 'aurora'){ document.documentElement.setAttribute('data-theme', t); }
-    }catch(e){}
-  })();
-  </script>
 </head>
 <body>
+
   <div id="nav"></div>
   <div class="container page">
     <div class="header">
-      <div><div id="title" class="title">Class</div><div class="subtitle">Roster and attendance overview</div></div>
-      <div class="page-actions"><button class="btn btn-outline" onclick="Auth.logout()">Log out</button></div>
+      <div>
+        <div id="title" class="title">Class</div>
+        <div class="subtitle">Roster and attendance overview</div>
+      </div>
+      <div class="page-actions">
+        <a href="instructor.html" class="btn btn-outline" style="margin-right: 8px;">← Back</a>
+      </div>
     </div>
-    <div class="grid grid-2">
-      <div class="card">
+    <div class="card">
+      <div class="card-header-row">
         <h2>Roster</h2>
+        <button class="btn btn-primary" id="btnEnrollStudents">Enroll Students</button>
+      </div>
+      <div class="table">
         <table class="table">
-          <thead><tr><th>ID</th><th>Name</th><th>Email</th></tr></thead>
+          <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Actions</th></tr></thead>
           <tbody id="roster-tbody"></tbody>
         </table>
       </div>
-      <div class="card">
-        <h2>Attendance</h2>
-        <table class="table">
+    </div>
+    
+    <div class="card" style="margin-top: 24px;">
+      <h2>Attendance</h2>
+      <div class="table">
+        <table class="table attendance-table">
           <thead><tr><th>ID</th><th>Student</th><th>Check-in</th><th>Check-out</th><th>In Lat/Lon</th><th>Out Lat/Lon</th><th>Method</th></tr></thead>
           <tbody id="attendance-tbody"></tbody>
         </table>
@@ -68,5 +49,342 @@
     </div>
   </div>
   <div class="footer">Student Tracker • SaaS UI</div>
+
+  <div id="enrollModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Enroll Students</h2>
+        <button class="btn-link" id="btnCloseModal" style="font-size: 24px; padding: 0; width: 32px; height: 32px;">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input 
+          type="text" 
+          id="studentSearch" 
+          placeholder="Search students by name or email..." 
+          class="input search-input"
+          style="width: 100%; margin-bottom: 16px;"
+        />
+        <div id="students-list" style="max-height: 400px; overflow-y: auto;">
+          <p style="text-align: center; opacity: 0.6;">Loading students...</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="btnCancelEnroll">Cancel</button>
+        <button class="btn btn-primary" id="btnConfirmEnroll">Enroll Selected</button>
+      </div>
+    </div>
+  </div>
 </body>
+
+<script defer>
+    let currentClassId = null;
+    let allStudents = [];
+    let enrolledStudentIds = new Set();
+    let filteredStudents = [];
+
+    // Filters the 'allStudents' list based on a search term and calls renderStudentsList.
+    function filterStudents(searchTerm) {
+      if (!searchTerm || searchTerm.trim() === '') {
+        filteredStudents = allStudents;
+      } else {
+        const term = searchTerm.toLowerCase().trim();
+        filteredStudents = allStudents.filter(student => 
+          student.full_name.toLowerCase().includes(term) ||
+          student.email.toLowerCase().includes(term)
+        );
+      }
+      renderStudentsList();
+    }
+
+    // Renders the 'filteredStudents' list into the enrollment modal, disabling already-enrolled students.
+    function renderStudentsList() {
+      const studentsList = document.getElementById('students-list');
+      
+      if (filteredStudents.length === 0) {
+        studentsList.innerHTML = `
+          <div class="empty-state" style="padding: 40px 20px;">
+            <div class="empty-state-icon">🔍</div>
+            <div class="empty-state-title">No matches found</div>
+            <div class="empty-state-message">Try adjusting your search terms</div>
+          </div>`;
+        return;
+      }
+
+      studentsList.innerHTML = filteredStudents.map(student => {
+        const isEnrolled = enrolledStudentIds.has(student.id);
+        return `
+          <div class="student-item" ${isEnrolled ? 'style="opacity: 0.6;"' : ''}>
+            <div class="student-info">
+              <div class="student-name">${student.full_name}</div>
+              <div class="student-email">${student.email}</div>
+            </div>
+            <input 
+              type="checkbox" 
+              value="${student.id}" 
+              ${isEnrolled ? 'disabled checked' : ''}
+              data-student-id="${student.id}"
+            />
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Fetches and renders the attendance records for the class, mapping them to the current roster.
+    async function loadAttendanceData() {
+      if (!currentClassId) return;
+      
+      const tbody = document.getElementById('attendance-tbody');
+      if (!tbody) return;
+      
+      try {
+        const [roster, attendanceRecords] = await Promise.all([
+          api.getRoster(currentClassId),
+          api.getAttendance(currentClassId)
+        ]);
+        
+        if (!roster || roster.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7">
+            <div class="empty-state" style="padding: 40px 20px;">
+              <div class="empty-state-icon">👥</div>
+              <div class="empty-state-title">No students enrolled</div>
+              <div class="empty-state-message">Enroll students to see their attendance</div>
+            </div>
+          </td></tr>`;
+          return;
+        }
+        
+        const attendanceMap = new Map();
+        attendanceRecords.forEach(record => {
+          const studentId = record.student_id;
+          if (!attendanceMap.has(studentId) || 
+              new Date(record.check_in_time) > new Date(attendanceMap.get(studentId).check_in_time)) {
+            attendanceMap.set(studentId, record);
+          }
+        });
+        
+        tbody.innerHTML = roster.map(student => {
+          const attendance = attendanceMap.get(student.id);
+          
+          if (attendance) {
+            const checkInTime = new Date(attendance.check_in_time).toLocaleString();
+            const checkOutTime = attendance.check_out_time 
+              ? new Date(attendance.check_out_time).toLocaleString() 
+              : '—';
+            const checkInGeo = attendance.check_in_lat && attendance.check_in_lon
+              ? `${attendance.check_in_lat.toFixed(5)}, ${attendance.check_in_lon.toFixed(5)}`
+              : '—';
+            const checkOutGeo = attendance.check_out_lat && attendance.check_out_lon
+              ? `${attendance.check_out_lat.toFixed(5)}, ${attendance.check_out_lon.toFixed(5)}`
+              : '—';
+            const method = attendance.method || '—';
+            
+            return `
+              <tr class="fade-in">
+                <td>${student.id}</td>
+                <td><strong>${student.full_name}</strong></td>
+                <td>${checkInTime}</td>
+                <td>${checkOutTime}</td>
+                <td>${checkInGeo}</td>
+                <td>${checkOutGeo}</td>
+                <td><span class="badge badge-success">${method}</span></td>
+              </tr>
+            `;
+          } else {
+            return `
+              <tr class="fade-in" style="opacity: 0.6;">
+                <td>${student.id}</td>
+                <td><strong>${student.full_name}</strong></td>
+                <td colspan="5" style="text-align: center; color: #999;">
+                  <span class="badge" style="background: #f0f0f0; color: #666;">No attendance record</span>
+                </td>
+              </tr>
+            `;
+          }
+        }).join('');
+        
+      } catch (error) {
+        console.error('Error loading attendance data:', error);
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: red;">
+          Error loading attendance: ${error.message}
+        </td></tr>`;
+      }
+    }
+
+    // Fetches and renders the class roster, adding 'unenroll' button event listeners.
+    async function loadRoster() {
+      if (!currentClassId) return;
+      const roster = await api.getRoster(currentClassId);
+      enrolledStudentIds = new Set(roster.map(s => s.id));
+      
+      const tbody = document.getElementById('roster-tbody');
+      if (!tbody) return;
+      
+      if (!roster || roster.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4">
+          <div class="empty-state" style="padding: 40px 20px;">
+            <div class="empty-state-icon">👥</div>
+            <div class="empty-state-title">No students enrolled</div>
+            <div class="empty-state-message">Click "Enroll Students" to add students to this class</div>
+          </div>
+        </td></tr>`;
+        return;
+      }
+      
+      tbody.innerHTML = roster.map(s => `
+        <tr class="fade-in">
+          <td>${s.id}</td>
+          <td><strong>${s.full_name}</strong></td>
+          <td>${s.email}</td>
+          <td>
+            <button
+              type="button"
+              class="delete-btn unenroll-btn"
+              title="Remove student from class"
+              data-student-id="${s.id}"
+              data-student-name="${s.full_name.replace(/"/g, '&quot;')}">
+              🗑
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+      tbody.querySelectorAll('.unenroll-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+          const studentId = parseInt(this.getAttribute('data-student-id'));
+          const studentName = this.getAttribute('data-student-name');
+          
+          let classTitle = 'this class';
+          try {
+            const cls = await api.getClass(currentClassId);
+            classTitle = cls?.title || classTitle;
+          } catch (e) {
+            console.error('Error fetching class:', e);
+          }
+          
+          const confirmed = await UI.showConfirm(
+            'Remove Student from Class',
+            `Are you sure you want to remove <strong>${studentName}</strong> from <strong>"${classTitle}"</strong>?<br><br>This will remove their enrollment and they will no longer have access to this class.`,
+            'Remove Student',
+            'Cancel',
+            'warning'
+          );
+          
+          if (!confirmed) return;
+
+          try {
+            await api.unenrollStudent(currentClassId, studentId);
+            UI.showToast(`${studentName} has been removed from the class`, 'success');
+            await loadRoster();
+            await loadAttendanceData();
+          } catch (error) {
+            console.error('Error unenrolling student:', error);
+            UI.showToast(`Error removing student: ${error.message}`, 'error');
+          }
+        });
+      });
+    }
+
+    // Displays the 'Enroll Students' modal and loads the full list of students from the API.
+    async function openEnrollModal() {
+      const modal = document.getElementById('enrollModal');
+      const studentsList = document.getElementById('students-list');
+      const searchInput = document.getElementById('studentSearch');
+      
+      try {
+        studentsList.innerHTML = '<p style="text-align: center; opacity: 0.6;">Loading students...</p>';
+        modal.style.display = 'flex';
+        searchInput.value = '';
+        
+        allStudents = await api.getStudents();
+        
+        if (allStudents.length === 0) {
+          studentsList.innerHTML = `
+            <div class="empty-state" style="padding: 40px 20px;">
+              <div class="empty-state-icon">👤</div>
+              <div class="empty-state-title">No students found</div>
+              <div class="empty-state-message">No students are available in the database</div>
+            </div>`;
+          return;
+        }
+
+        filteredStudents = allStudents;
+        renderStudentsList();
+      } catch (error) {
+        console.error('Error loading students:', error);
+        studentsList.innerHTML = `<p style="text-align: center; color: red;">Error loading students: ${error.message}</p>`;
+      }
+    }
+
+    // Hides the 'Enroll Students' modal.
+    function closeEnrollModal() {
+      document.getElementById('enrollModal').style.display = 'none';
+    }
+
+    // Enrolls the selected students from the modal via the API and refreshes the class data.
+    async function enrollSelectedStudents() {
+      const checkboxes = document.querySelectorAll('#students-list input[type="checkbox"]:checked:not(:disabled)');
+      const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+      
+      if (selectedIds.length === 0) {
+        UI.showToast('Please select at least one student to enroll', 'error');
+        return;
+      }
+
+      const enrollBtn = document.getElementById('btnConfirmEnroll');
+      UI.setButtonLoading(enrollBtn, true);
+
+      try {
+        const enrollPromises = selectedIds.map(studentId => 
+          api.enrollStudent(currentClassId, studentId)
+        );
+        await Promise.all(enrollPromises);
+        
+        UI.showToast(`Successfully enrolled ${selectedIds.length} student(s)`, 'success');
+        closeEnrollModal();
+        await loadRoster();
+        await loadAttendanceData();
+      } catch (error) {
+        console.error('Error enrolling students:', error);
+        UI.showToast(`Error enrolling students: ${error.message}`, 'error');
+      } finally {
+        UI.setButtonLoading(enrollBtn, false);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      UI.guardRole('INSTRUCTOR','ADMIN'); 
+      UI.mountNav();
+      
+      const params = new URLSearchParams(location.search);
+      currentClassId = params.get('id');
+      
+      const cls = await api.getClass(currentClassId);
+      document.getElementById('title').textContent = `${cls.title} — ${cls.term}`;
+      
+      await loadRoster();
+      await loadAttendanceData();
+
+      document.getElementById('btnEnrollStudents').addEventListener('click', openEnrollModal);
+      document.getElementById('btnCloseModal').addEventListener('click', closeEnrollModal);
+      document.getElementById('btnCancelEnroll').addEventListener('click', closeEnrollModal);
+      document.getElementById('btnConfirmEnroll').addEventListener('click', enrollSelectedStudents);
+      
+      document.getElementById('studentSearch').addEventListener('input', (e) => {
+        filterStudents(e.target.value);
+      });
+      
+      document.getElementById('enrollModal').addEventListener('click', (e) => {
+        if (e.target.id === 'enrollModal') {
+          closeEnrollModal();
+        }
+      });
+    });
+    
+  (function(){
+    try{
+      var t = localStorage.getItem('st_theme') || 'aurora';
+      if(t && t !== 'aurora'){ document.documentElement.setAttribute('data-theme', t); }
+    }catch(e){}
+  })();
+  </script>
 </html>

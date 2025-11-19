@@ -1,4 +1,3 @@
-// Chat UI — frontend-only mock that persists to localStorage
 const Chat = (function(){
   const STORE_KEY = 'st_chat_store';
   const SEL_KEY = 'st_chat_selected';
@@ -9,6 +8,7 @@ const Chat = (function(){
 
   const state = { threads: [], users: [], role: 'STUDENT', me: null, selectedId: null, roster: [] };
 
+  // Populates the database with initial seed data if it's empty.
   function seedIfEmpty(){
     const db = load();
     if (!db.users){
@@ -21,10 +21,9 @@ const Chat = (function(){
       ];
     }
     if (!db.threads){
-      // One starter thread between instructor and Student One
       db.threads = [{
         id: uid(),
-        participants: [2,3],           // instructor + student
+        participants: [2,3],           
         title: "Instructor ↔ Student One",
         messages: [
           { id: uid(), from: 2, text: "Welcome to the class!", at: nowISO() },
@@ -35,14 +34,14 @@ const Chat = (function(){
     save(db);
   }
 
+  // Populates the database with initial seed data if it's empty.
   function currentDB(){ seedIfEmpty(); return load(); }
 
+  // Renders the list of chat threads in the sidebar, handling search and sorting.
   function renderSidebar(){
     const me = state.me;
     const db = currentDB();
-    // Filter threads: student sees only with instructor; instructor sees those they participate in
     const myThreads = (db.threads || []).filter(t => t.participants.includes(me.id));
-    // Sidebar
     const cont = document.getElementById('threads');
     if (!cont) return;
     const q = document.getElementById('search').value.toLowerCase();
@@ -63,7 +62,6 @@ const Chat = (function(){
       </div>`;
     }).join('');
 
-    // click handlers
     cont.querySelectorAll('.chat-item').forEach(el => {
       el.addEventListener('click', () => {
         state.selectedId = el.getAttribute('data-id');
@@ -74,10 +72,13 @@ const Chat = (function(){
     });
   }
 
+  // Utility function to return a name or 'U' as a fallback.
   function nameFor(str){ return (str || 'U'); }
 
+  // Escapes a string for safe insertion into HTML.
   function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+  // Gets a comma-separated string of all participants in a thread, excluding the current user.
   function threadOtherName(thread, me){
     const db = currentDB();
     const others = thread.participants.filter(id => id !== me.id);
@@ -85,6 +86,7 @@ const Chat = (function(){
     return names.join(', ');
   }
 
+  // Renders the header and all messages for the currently selected thread.
   function renderActiveThread(){
     const db = currentDB();
     const me = state.me;
@@ -105,16 +107,13 @@ const Chat = (function(){
     }
     input.disabled = false;
 
-    // Header info
     titleEl.textContent = thread.title;
     const others = thread.participants.filter(id => id !== me.id)
       .map(id => db.users.find(u => u.id===id)?.fullName || "User");
     subEl.textContent = `Participants: ${others.join(", ")}`;
 
-    // Recipients pills (read-only here)
     recipEl.innerHTML = others.map(n => `<span class="recipient-pill">${escapeHTML(n)}</span>`).join('');
 
-    // Messages
     msgEl.innerHTML = thread.messages.map(m => {
       const from = db.users.find(u => u.id===m.from);
       const mine = m.from === me.id;
@@ -126,6 +125,7 @@ const Chat = (function(){
     msgEl.scrollTop = msgEl.scrollHeight;
   }
 
+  // Adds the message from the input box to the active thread and updates the UI.
   function sendMessage(){
     const db = currentDB();
     const me = state.me;
@@ -141,6 +141,7 @@ const Chat = (function(){
     renderSidebar();
   }
 
+  // Shows or hides UI elements (like the 'new thread' button) based on the user's role.
   function setRoleCapabilities(){
     const me = state.me;
     const btn = document.getElementById('new-thread');
@@ -152,7 +153,7 @@ const Chat = (function(){
     }
   }
 
-  // Modal: Instructor selects students to start a thread
+  // Opens the 'new thread' modal and populates it with a list of students.
   function openModal(){
     const modal = document.getElementById('recip-modal');
     const list = document.getElementById('recip-list');
@@ -170,17 +171,18 @@ const Chat = (function(){
     modal.classList.add('open');
   }
 
+  // Closes the 'new thread' modal.
   function closeModal(){
     document.getElementById('recip-modal').classList.remove('open');
   }
 
+  // Creates a new chat thread based on the students selected in the modal.
   function createThreadFromSelection(){
     const db = currentDB();
     const me = state.me;
     const checkboxes = Array.from(document.querySelectorAll('#recip-list input[type=checkbox]'));
     const selected = checkboxes.filter(c => c.checked).map(c => Number(c.value));
     if (selected.length === 0) return closeModal();
-    // Ensure only instructor starts group threads; students will always have the 1:1 with instructor
     const participants = [me.id, ...selected];
     const names = selected.map(id => db.users.find(u => u.id===id)?.fullName || "User").join(', ');
     const id = uid();
@@ -198,12 +200,14 @@ const Chat = (function(){
     renderActiveThread();
   }
 
+  // Restores the previously selected thread ID from localStorage.
   function restoreSelection(){
     const id = localStorage.getItem(SEL_KEY);
     if (!id) return;
     state.selectedId = id;
   }
 
+  // Sets up event listeners for the message input and send button.
   function setupComposer(){
     document.getElementById('send').addEventListener('click', sendMessage);
     const input = document.getElementById('msg-input');
@@ -212,8 +216,8 @@ const Chat = (function(){
     });
   }
 
+  // Adds a 'Chat' link to the main navigation if the user is a student or instructor.
   function fixNavLinks(){
-    // add Chat to nav for student/instructor
     const me = state.me;
     const links = document.querySelector('.nav .links');
     if (!links) return;
@@ -227,8 +231,8 @@ const Chat = (function(){
     }
   }
 
+  // Main initialization function to set up the chat application on page load.
   function init(){
-    // Initialize
     const me = Auth.currentUser();
     state.me = me;
     state.role = me.role;
@@ -239,7 +243,6 @@ const Chat = (function(){
     renderActiveThread();
     fixNavLinks();
 
-    // Search
     document.getElementById('search').addEventListener('input', renderSidebar);
   }
 

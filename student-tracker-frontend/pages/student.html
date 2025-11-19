@@ -1,52 +1,354 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../styles.css" />
-  <script defer src="../js/auth.js"></script>
-  <script defer src="../js/api.js"></script>
-  <script defer src="../js/ui.js"></script>
 
-  <title>Student — Dashboard</title>
-  <script defer>
-    document.addEventListener('DOMContentLoaded', async () => {
-      UI.guardRole('STUDENT');
-      UI.mountNav();
-      const me = Auth.currentUser();
-      document.getElementById('greet').textContent = me.fullName;
-      const classes = await api.listMyClasses(me);
-      UI.renderTable('classes-tbody', classes, (c) => ([c.id, c.title, c.term, `<a href="checkin.html?classId=${c.id}">Check-in</a>`]));
-    });
-  </script>
-  <script>
-  (function(){
-    try{
-      var t = localStorage.getItem('st_theme') || 'aurora';
-      if(t && t !== 'aurora'){ document.documentElement.setAttribute('data-theme', t); }
-    }catch(e){}
-  })();
-  </script>
+  <title>Student – Dashboard</title>
 </head>
+
 <body>
   <div id="nav"></div>
+
   <div class="container page">
     <div class="header">
-      <div><div class="title">Student Dashboard</div><div class="subtitle">View your classes and manage attendance</div></div>
-      <div class="page-actions"><button class="btn btn-outline" onclick="Auth.logout()">Log out</button></div>
+      <div>
+        <div class="title">Student Dashboard</div>
+        <div class="subtitle">View your classes and manage attendance</div>
+      </div>
+      <div class="page-actions"></div>
     </div>
+
     <div class="card">
       <h2>Hello, <span id="greet">Student</span></h2>
-      <table class="table">
-        <thead><tr><th>ID</th><th>Title</th><th>Term</th><th>Attendance</th></tr></thead>
-        <tbody id="classes-tbody"></tbody>
-      </table>
+      <p style="margin-top:4px; color: var(--muted); font-size:0.9rem;">
+        Select a class from the list to view attendance or check in / out.
+      </p>
+      <div class="table" style="margin-top:16px;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Title</th>
+              <th>Term</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="classes-tbody">
+            <tr>
+              <td colspan="5" style="text-align:center; padding: 32px;">
+                <div class="spinner" style="margin:0 auto;"></div>
+                <p style="margin-top: 12px; opacity: 0.6;">Loading your classes…</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="attendance-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-title">Attendance</h2>
+        <span class="modal-close" id="modal-close-btn">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="table">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th style="white-space: normal;">Check-in</th>
+                <th style="white-space: normal;">Check-out</th>
+                <th style="white-space: normal; min-width: 140px;">Check-in Location</th>
+                <th style="white-space: normal; min-width: 140px;">Check-out Location</th>
+                <th>Method</th>
+              </tr>
+            </thead>
+            <tbody id="modal-attendance-tbody">
+
+            </tbody>
+          </table>
+        </div>
+        <p class="alert info" style="margin-top:16px;">
+          When you check in, the system records the current time and, if allowed, your approximate location.
+        </p>
+      </div>
+      <div class="modal-footer" id="modal-actions">
+      </div>
     </div>
   </div>
   <div class="footer">Student Tracker • SaaS UI</div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/ui.js"></script>
+  <script defer>
+    const modal = document.getElementById('attendance-modal');
+    const modalCloseBtn = document.getElementById('modal-close-btn');
+    const modalTitle = document.getElementById('modal-title');
+    const modalAttendanceTbody = document.getElementById('modal-attendance-tbody');
+    const modalActions = document.getElementById('modal-actions');
+
+    // Gets geolocation (if permitted by user)
+    async function getGeo() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+          () => resolve(null),
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+        );
+      });
+    }
+
+    let allClasses = [];
+    let currentClassId = null; 
+    let globalCheckedInClass = null; 
+
+    // Checks if the student is currently checked in to any class
+    async function checkGlobalCheckInStatus() {
+      try {
+        for (const cls of allClasses) {
+          const rows = await api.getMyAttendance(cls.id);
+          const openSession = rows.find(r => !r.check_out_time);
+          if (openSession) {
+            globalCheckedInClass = cls.id;
+            return;
+          }
+        }
+        globalCheckedInClass = null;
+      } catch (err) {
+        console.error('Failed to check global check-in status:', err);
+      }
+    }
+
+    // Renders the main classes table
+    function renderClassesTable() {
+      const tbody = document.getElementById('classes-tbody');
+      
+      if (!allClasses || allClasses.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5">
+          <div class="empty-state">
+            <div class="empty-state-icon">📚</div>
+            <div class="empty-state-title">No classes enrolled</div>
+            <div class="empty-state-message">You are not enrolled in any classes yet</div>
+          </div>
+        </td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = allClasses.map(c => {
+        const isCheckedIntoThisClass = globalCheckedInClass === c.id;
+        
+        const statusBadge = isCheckedIntoThisClass
+          ? '<span class="badge" style="background: #22c55e; color: white;">✓ Checked In</span>'
+          : '<span class="badge badge-info">Not Checked In</span>';
+
+        return `
+          <tr class="fade-in">
+            <td>${c.id}</td>
+            <td><strong>${c.title || '—'}</strong></td>
+            <td><span class="badge badge-info">${c.term || '—'}</span></td>
+            <td>${statusBadge}</td>
+            <td>
+              <button
+                type="button"
+                class="btn btn-outline view-class-btn"
+                data-class-id="${c.id}"
+                title="View attendance and manage check-in">
+                View / Manage
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Renders the attendance table inside the modal
+    function renderModalAttendanceTable(rows) {
+      if (!rows || rows.length === 0) {
+        modalAttendanceTbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 32px; opacity:0.6;">No attendance records yet</td></tr>';
+        return;
+      }
+
+      modalAttendanceTbody.innerHTML = rows.map(a => {
+        const isOpen = !a.check_out_time;
+        const rowStyle = isOpen ? 'background: rgba(34, 197, 94, 0.05);' : '';
+        
+        return `
+          <tr class="fade-in" style="${rowStyle}">
+            <td>${a.id}</td>
+            <td style="white-space: normal;">${new Date(a.check_in_time ?? a.checkInTime).toLocaleString()}</td>
+            <td style="white-space: normal;">${a.check_out_time ? new Date(a.check_out_time).toLocaleString() : '<span class="badge" style="background: #22c55e; color: white;">Active</span>'}</td>
+            <td style="white-space: normal; min-width: 140px;">${a.check_in_lat && a.check_in_lon ? `${a.check_in_lat.toFixed(5)}, ${a.check_in_lon.toFixed(5)}` : '—'}</td>
+            <td style="white-space: normal; min-width: 140px;">${a.check_out_lat && a.check_out_lon ? `${a.check_out_lat.toFixed(5)}, ${a.check_out_lon.toFixed(5)}` : '—'}</td>
+            <td>${a.method || '—'}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Renders the action buttons inside the modal based on check-in status
+    function renderModalActions() {
+      const isCheckedIntoThisClass = globalCheckedInClass === currentClassId;
+      const isCheckedIntoAnotherClass = globalCheckedInClass && globalCheckedInClass !== currentClassId;
+
+      if (isCheckedIntoThisClass) {
+        modalActions.innerHTML = `
+          <button class="btn btn-danger" id="modal-btn-checkout" type="button">Check Out</button>
+        `;
+      } else if (isCheckedIntoAnotherClass) {
+        modalActions.innerHTML = `
+          <button class="btn btn-primary" id="modal-btn-checkin" type="button" disabled title="You must check out of your other class first">Check In</button>
+        `;
+      } else {
+        modalActions.innerHTML = `
+          <button class="btn btn-primary" id="modal-btn-checkin" type="button">Check In</button>
+        `;
+      }
+    }
+
+    // Loads attendance data and actions into the modal
+    async function loadModalData() {
+      if (!currentClassId) return;
+      
+      modalAttendanceTbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align:center; padding: 32px;">
+            <div class="spinner" style="margin:0 auto;"></div>
+            <p style="margin-top: 12px; opacity: 0.6;">Loading attendance…</p>
+          </td>
+        </tr>`;
+      modalActions.innerHTML = ''; 
+
+      try {
+        const rows = await api.getMyAttendance(currentClassId);
+        renderModalAttendanceTable(rows); 
+        renderModalActions(); 
+      } catch (err) {
+        console.error(err);
+        modalAttendanceTbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 32px; color:#b91c1c;">
+          Failed to load attendance: ${err.message}
+        </td></tr>`;
+      }
+    }
+
+    // Loads the student's classes and updates global check-in status
+    async function loadClasses() {
+      try {
+        allClasses = await api.getMyClasses();
+        await checkGlobalCheckInStatus(); 
+        renderClassesTable(); 
+      } catch (err) {
+        console.error(err);
+        const tbody = document.getElementById('classes-tbody');
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 32px; color:#b91c1c;">
+          Failed to load classes: ${err.message}
+        </td></tr>`;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      UI.guardRole('STUDENT');
+      UI.mountNav('STUDENT');
+
+      const u = Auth.currentUser();
+      document.getElementById('greet').textContent = u.fullName || u.email;
+
+      await loadClasses();
+
+      document.getElementById('classes-tbody').addEventListener('click', async (e) => {
+        const btn = e.target.closest('.view-class-btn');
+        if (!btn) return;
+
+        const classId = btn.getAttribute('data-class-id');
+        const selectedClass = allClasses.find(c => c.id == classId);
+        if (!selectedClass) return;
+        
+        const className = selectedClass ? `${selectedClass.title}${selectedClass.term ? ' (' + selectedClass.term + ')' : ''}` : 'this class';
+
+        currentClassId = classId;
+        modalTitle.textContent = `Attendance for ${className}`;
+        
+        await loadModalData(); 
+        modal.style.display = 'flex'; 
+      });
+
+      const closeModal = () => {
+        modal.style.display = 'none';
+        currentClassId = null;
+        modalAttendanceTbody.innerHTML = ''; 
+        modalActions.innerHTML = ''; 
+      };
+      modalCloseBtn.addEventListener('click', closeModal);
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal(); 
+      });
+
+      modalActions.addEventListener('click', async (e) => {
+        const checkinBtn = e.target.closest('#modal-btn-checkin');
+        const checkoutBtn = e.target.closest('#modal-btn-checkout');
+        
+        if (!checkinBtn && !checkoutBtn) return;
+        
+        const selectedClass = allClasses.find(c => c.id == currentClassId);
+        const className = selectedClass ? `${selectedClass.title}${selectedClass.term ? ' (' + selectedClass.term + ')' : ''}` : 'this class';
+
+        if (checkinBtn) {
+          const confirmed = await UI.showConfirm(
+            'Confirm Check-In',
+            `Are you sure you want to check in for <strong>${className}</strong>?`,
+            'Yes, check me in',
+            'Cancel',
+            'info'
+          );
+          if (!confirmed) return;
+
+          UI.setButtonLoading(checkinBtn, true);
+          try {
+            const geo = await getGeo();
+            await api.checkIn(currentClassId, geo);
+            UI.showToast(`Successfully checked in to ${className}`, 'success');
+            globalCheckedInClass = currentClassId; 
+          } catch (err) {
+            UI.showToast(err.message || 'Failed to check in.', 'error');
+          } finally {
+            renderClassesTable(); 
+            await loadModalData(); 
+          }
+
+        } else if (checkoutBtn) {
+          const confirmed = await UI.showConfirm(
+            'Confirm Check-Out',
+            `Do you want to check out of <strong>${className}</strong>?`,
+            'Yes, check me out',
+            'Cancel',
+            'warning'
+          );
+          if (!confirmed) return;
+
+          UI.setButtonLoading(checkoutBtn, true);
+          try {
+            const geo = await getGeo();
+            await api.checkOut(currentClassId, geo);
+            UI.showToast(`Successfully checked out of ${className}`, 'success');
+            globalCheckedInClass = null; 
+          } catch (err) {
+            UI.showToast(err.message || 'Failed to check out.', 'error');
+          } finally {
+            renderClassesTable(); 
+            await loadModalData(); 
+          }
+        }
+      });
+    });
+  </script>
 </body>
 </html>

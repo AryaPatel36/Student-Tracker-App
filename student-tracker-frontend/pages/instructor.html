@@ -1,71 +1,224 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../styles.css" />
-  <script defer src="../js/auth.js"></script>
-  <script defer src="../js/api.js"></script>
-  <script defer src="../js/ui.js"></script>
-
-  <title>Instructor — Dashboard</title>
-  <script defer>
-    document.addEventListener('DOMContentLoaded', async () => {
-      UI.guardRole('INSTRUCTOR');
-      UI.mountNav();
-      const me = Auth.currentUser();
-      document.getElementById('greet').textContent = me.fullName;
-      const classes = await api.listMyClasses(me);
-      UI.renderTable('classes-tbody', classes, (c) => ([c.id, c.title, c.term, `<a href="class.html?id=${c.id}">Roster & Attendance</a>`]));
-      document.getElementById('create-class-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const title = e.target.title.value.trim();
-        const term = e.target.term.value.trim();
-        await api.createClass({ title, term });
-        location.reload();
-      });
-    });
-  </script>
-  <script>
-  (function(){
-    try{
-      var t = localStorage.getItem('st_theme') || 'aurora';
-      if(t && t !== 'aurora'){ document.documentElement.setAttribute('data-theme', t); }
-    }catch(e){}
-  })();
-  </script>
+  <title>Instructor – Dashboard</title>
 </head>
+
 <body>
   <div id="nav"></div>
   <div class="container page">
     <div class="header">
-      <div><div class="title">Instructor Dashboard</div><div class="subtitle">Create classes, view rosters, and attendance</div></div>
-      <div class="page-actions"><button class="btn btn-outline" onclick="Auth.logout()">Log out</button></div>
+      <div>
+        <div class="title">Instructor Dashboard</div>
+        <div class="subtitle">Create classes, view rosters, and attendance</div>
+      </div>
+      <div class="page-actions">
+      </div>
     </div>
     <div class="grid grid-2">
-      <div class="card">
+      <div class="card card-fixed">
         <h2>Hello, <span id="greet">Instructor</span></h2>
-        <table class="table">
-          <thead><tr><th>ID</th><th>Title</th><th>Term</th><th>Manage</th></tr></thead>
-          <tbody id="classes-tbody"></tbody>
-        </table>
+        <div class="table">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Section</th>
+                <th>Term</th>
+                <th>Manage</th>
+              </tr>
+            </thead>
+            <tbody id="classes-tbody">
+              <tr><td colspan="5" style="text-align:center; padding: 40px;">
+                <div class="spinner" style="margin: 0 auto;"></div>
+                <p style="margin-top: 12px; opacity: 0.6;">Loading classes...</p>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pager" id="pager"></div>
       </div>
-      <div class="card">
+      <div class="card card-fixed">
         <h2>Create Class</h2>
         <form id="create-class-form" class="grid" style="gap:10px;">
           <label>Title</label>
           <input required name="title" placeholder="CSCI 1010" />
+          <label>Section</label>
+          <input required name="section" placeholder="202" />
           <label>Term</label>
           <input required name="term" placeholder="Fall 2025" />
-          <button class="btn btn-primary">Create</button>
+          <button type="submit" class="btn btn-primary">Create</button>
         </form>
       </div>
     </div>
   </div>
   <div class="footer">Student Tracker • SaaS UI</div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/ui.js"></script>
+  <script>
+    let allClasses = [];
+    let currentPage = 1;
+    const perPage = 10;
+
+    // Renders the pagination buttons based on the total number of classes.
+    function renderPager() {
+      const pager = document.getElementById('pager');
+      const totalPages = Math.ceil(allClasses.length / perPage);
+      
+      if (totalPages <= 1) {
+        pager.innerHTML = '';
+        return;
+      }
+
+      let html = '';
+      for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="pager-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+      }
+      pager.innerHTML = html;
+    }
+
+    window.goToPage = function(page) {
+      currentPage = page;
+      renderClassesPage();
+    }
+
+    window.onDeleteClass = async function(id) {
+      const cls = allClasses.find(c => c.id === id);
+      
+      const confirmed = await UI.showConfirm(
+        'Delete Class',
+        `Are you sure you want to permanently delete the class <strong>"${cls?.title || 'this class'}"</strong> (${cls?.section || ''} - ${cls?.term || ''})?<br><br>This will remove all enrollments and attendance records associated with this class. This action cannot be undone.`,
+        'Delete Class',
+        'Cancel',
+        'danger'
+      );
+      
+      if (!confirmed) return;
+
+      try {
+        await api.deleteClass(id);
+        UI.showToast(`Class "${cls?.title || 'deleted'}" has been permanently removed`, 'success');
+        await loadClasses(); 
+      } catch (err) {
+        console.error('Failed to delete class:', err);
+        UI.showToast('Failed to delete class: ' + err.message, 'error');
+      }
+    }
+
+    // Renders the paginated list of classes into the table body.
+    function renderClassesPage() {
+      const tbody = document.getElementById('classes-tbody');
+      
+      if (!allClasses || allClasses.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5">
+          <div class="empty-state">
+            <div class="empty-state-icon">📚</div>
+            <div class="empty-state-title">No classes yet</div>
+            <div class="empty-state-message">Create your first class to get started</div>
+          </div>
+        </td></tr>`;
+        renderPager();
+        return;
+      }
+
+      const start = (currentPage - 1) * perPage;
+      const end = start + perPage;
+      const pageClasses = allClasses.slice(start, end);
+
+      tbody.innerHTML = pageClasses.map(c => `
+        <tr class="fade-in">
+          <td>${c.id}</td>
+          <td><strong>${c.title || '—'}</strong></td>
+          <td>${c.section || '—'}</td>
+          <td><span class="badge badge-info">${c.term || '—'}</span></td>
+          <td>
+            <a href="class.html?id=${c.id}" style="margin-right: 12px;">Manage</a>
+            <button
+              type="button"
+              class="delete-btn"
+              title="Delete class"
+              onclick="onDeleteClass(${c.id})">
+              🗑
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+      renderPager();
+    }
+
+    // Fetches the list of classes from the API and triggers the initial render.
+    async function loadClasses() {
+      try {
+        console.log('Loading classes...');
+        allClasses = await api.getClasses();
+        console.log('Classes received:', allClasses);
+        currentPage = 1; 
+        renderClassesPage();
+      } catch (err) {
+        console.error('Failed to load classes:', err);
+        const tbody = document.getElementById('classes-tbody');
+        tbody.innerHTML = `<tr><td colspan="5">
+          <div class="empty-state">
+            <div class="empty-state-icon">⚠️</div>
+            <div class="empty-state-title">Failed to load classes</div>
+            <div class="empty-state-message">${err.message || 'Please try refreshing the page'}</div>
+          </div>
+        </td></tr>`;
+        UI.showToast("Failed to load classes", 'error');
+      }
+    }
+
+    window.addEventListener('load', async () => {
+      console.log('Page loaded, checking auth...');
+      UI.guardRole('INSTRUCTOR');
+      UI.mountNav('INSTRUCTOR');
+      
+      const u = Auth.currentUser();
+      console.log('Current user:', u);
+      document.querySelector('#greet').textContent = u.fullName || u.email;
+      
+      await loadClasses();
+      
+      const form = document.getElementById('create-class-form');
+      const submitBtn = form.querySelector('button[type="submit"]');
+      
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const title = formData.get('title').trim();
+        const term = formData.get('term').trim();
+        const section = formData.get('section').trim();
+        
+        if (!title || !term || !section) {
+          UI.showToast('Please fill in all fields', 'error');
+          return;
+        }
+        
+        UI.setButtonLoading(submitBtn, true);
+        
+        try {
+          const result = await api.createClass(title, term, section);
+          UI.showToast(`Class "${title}" created successfully`, 'success');
+          form.reset();
+          await loadClasses(); 
+        } catch (err) {
+          console.error('Failed to create class:', err);
+          UI.showToast('Failed to create class: ' + err.message, 'error');
+        } finally {
+          UI.setButtonLoading(submitBtn, false);
+        }
+      });
+    });
+  </script>
 </body>
 </html>

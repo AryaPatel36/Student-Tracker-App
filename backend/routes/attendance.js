@@ -8,7 +8,6 @@ const r = Router();
 r.post("/checkin", requireAuth, requireRole("STUDENT"), async (req, res, next) => {
   try {
     const { classId, lat, lon, method } = req.body || {};
-    // Optional: verify enrollment before inserting
     const enrolled = await pool.query(
       "SELECT 1 FROM enrollment WHERE class_id=$1 AND student_id=$2",
       [classId, req.user.id]
@@ -40,6 +39,21 @@ r.post("/checkout", requireAuth, requireRole("STUDENT"), async (req, res, next) 
     );
     if (!rows[0]) return res.status(404).json({ error: "No open session" });
     res.json(rows[0]);
+  } catch (e) { next(e); }
+});
+
+// NEW: GET /api/attendance/my/:classId  (STUDENT)
+// Returns this student's attendance history for a class.
+r.get("/my/:classId", requireAuth, requireRole("STUDENT"), async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT *
+       FROM attendance
+       WHERE class_id = $1 AND student_id = $2
+       ORDER BY check_in_time DESC`,
+      [req.params.classId, req.user.id]
+    );
+    res.json(rows);
   } catch (e) { next(e); }
 });
 

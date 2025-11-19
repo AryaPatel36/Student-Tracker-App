@@ -1,78 +1,259 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../styles.css" />
-  <script defer src="../js/auth.js"></script>
-  <script defer src="../js/api.js"></script>
-  <script defer src="../js/ui.js"></script>
-
-  <title>Admin — Dashboard</title>
-  <script defer>
-    document.addEventListener('DOMContentLoaded', async () => {
-      UI.guardRole('ADMIN');
-      UI.mountNav();
-      const me = Auth.currentUser();
-      document.getElementById('greet').textContent = me.fullName;
-      const users = await api.listUsers();
-      UI.renderTable('users-tbody', users, (u) => ([u.id, u.fullName, u.email, u.role]));
-      document.getElementById('create-user-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const fullName = e.target.fullName.value.trim();
-        const email = e.target.email.value.trim();
-        const role = e.target.role.value;
-        await api.createUser({ fullName, email, role });
-        location.reload();
-      });
-    });
-  </script>
-  <script>
-  (function(){
-    try{
-      var t = localStorage.getItem('st_theme') || 'aurora';
-      if(t && t !== 'aurora'){ document.documentElement.setAttribute('data-theme', t); }
-    }catch(e){}
-  })();
-  </script>
+  <title>Admin Dashboard</title>
 </head>
+
 <body>
   <div id="nav"></div>
   <div class="container page">
     <div class="header">
-      <div><div class="title">Admin Dashboard</div><div class="subtitle">Manage users and roles</div></div>
-      <div class="page-actions"><button class="btn btn-outline" onclick="Auth.logout()">Log out</button></div>
+      <div>
+        <div class="title">Admin Dashboard</div>
+        <div class="subtitle">Manage users and roles</div>
+      </div>
+      <div class="page-actions">
+      </div>
     </div>
     <div class="grid grid-2">
-      <div class="card">
-        <h2>Hello, <span id="greet">Admin</span></h2>
-        <table class="table">
-          <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th></tr></thead>
-          <tbody id="users-tbody"></tbody>
-        </table>
+      <div class="card card-fixed">
+        <div class="card-header-row">
+          <h2>All Users</h2>
+          <input id="userSearch" type="text" placeholder="Search name or email…" class="input search-input" />
+        </div>
+        <div class="table">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+        <div id="userPager" class="pager"></div>
       </div>
-      <div class="card">
+
+      <div class="card card-fixed">
         <h2>Create User</h2>
         <form id="create-user-form" class="grid" style="gap:10px;">
           <label>Full name</label>
           <input required name="fullName" placeholder="Jordan Doe" />
+
           <label>Email</label>
           <input required name="email" type="email" placeholder="jordan@school.edu" />
+
           <label>Role</label>
           <select name="role">
             <option value="STUDENT">Student</option>
             <option value="INSTRUCTOR">Instructor</option>
             <option value="ADMIN">Admin</option>
           </select>
-          <button class="btn btn-primary">Create</button>
+
+          <label>Password</label>
+          <input required name="password" type="password" placeholder="min 6 characters" minlength="6" />
+
+          <button id="btnCreate" class="btn btn-primary" type="button">Create</button>
         </form>
       </div>
     </div>
   </div>
   <div class="footer">Student Tracker • SaaS UI</div>
+
+  <script defer src="../js/auth.js"></script>
+  <script defer src="../js/api.js"></script>
+  <script defer src="../js/ui.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      UI.guardRole("ADMIN");
+      UI.mountNav("ADMIN");
+
+      const tbody = document.getElementById("users-tbody");
+      const form = document.getElementById("create-user-form");
+      const searchInput = document.getElementById("userSearch");
+      const pager = document.getElementById("userPager");
+
+      let allUsers = [];
+      let filteredUsers = [];
+      let currentPage = 1;
+      const PAGE_SIZE = 10;
+
+      // Renders the appropriate slice of 'filteredUsers' into the table body based on the current page.
+      function renderTable() {
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const pageItems = filteredUsers.slice(start, start + PAGE_SIZE);
+
+        tbody.innerHTML = pageItems.length
+          ? pageItems.map(u => {
+            const roleBadge = u.role === "ADMIN" ? "badge-danger" :
+              u.role === "INSTRUCTOR" ? "badge-info" : "badge-success";
+            return `
+            <tr class="fade-in">
+              <td>${u.id}</td>
+              <td><strong>${u.full_name}</strong></td>
+              <td>${u.email}</td>
+              <td><span class="badge ${roleBadge}">${u.role}</span></td>
+              <td>
+                ${u.role !== "ADMIN"
+                ? `<button class="delete-btn" data-id="${u.id}" title="Delete user">🗑</button>`
+                : ""}
+              </td>
+            </tr>
+          `;
+          }).join("")
+          : `<tr><td colspan="5">
+            <div class="empty-state">
+              <div class="empty-state-icon">👥</div>
+              <div class="empty-state-title">No users found</div>
+              <div class="empty-state-message">Try adjusting your search criteria</div>
+            </div>
+          </td></tr>`;
+
+        tbody.querySelectorAll(".delete-btn").forEach(btn => {
+          btn.addEventListener("click", async () => {
+            const id = btn.dataset.id;
+            const user = allUsers.find(u => u.id == id);
+
+            const confirmed = await UI.showConfirm(
+              'Delete User',
+              `Are you sure you want to permanently delete <strong>${user?.full_name || 'this user'}</strong> (${user?.email || ''})?<br><br>This action cannot be undone and will remove all associated data.`,
+              'Delete User',
+              'Cancel',
+              'danger'
+            );
+
+            if (!confirmed) return;
+
+            try {
+              await api.adminDeleteUser(id);
+              UI.showToast(`User "${user?.full_name || 'deleted'}" has been permanently removed`, 'success');
+              await refreshUsers();
+            } catch (e) {
+              UI.showToast(e.message || "Failed to delete user", 'error');
+            }
+          });
+        });
+      }
+
+      // Renders the pagination buttons based on the total number of filtered users.
+      function renderPager() {
+        const totalPages = Math.ceil(filteredUsers.length / PAGE_SIZE) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        let html = "";
+        for (let p = 1; p <= totalPages; p++) {
+          html += `<button class="pager-btn ${p === currentPage ? "active" : ""}" data-page="${p}">${p}</button>`;
+        }
+        pager.innerHTML = html;
+
+        pager.querySelectorAll(".pager-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            currentPage = Number(btn.dataset.page);
+            renderTable();
+            renderPager();
+          });
+        });
+      }
+
+      // Fetches the complete list of users from the API and triggers a re-render.
+      async function refreshUsers() {
+        try {
+          allUsers = await api.listUsers();
+          applySearch();
+        } catch (e) {
+          console.error(e);
+          tbody.innerHTML = `<tr><td colspan="5">
+            <div class="empty-state">
+              <div class="empty-state-icon">⚠️</div>
+              <div class="empty-state-title">Failed to load users</div>
+              <div class="empty-state-message">${e.message || 'Please try refreshing the page'}</div>
+            </div>
+          </td></tr>`;
+          UI.showToast("Failed to load users", 'error');
+        }
+      }
+
+      // Filters 'allUsers' based on the search input and triggers a re-render of the table and pager.
+      function applySearch() {
+        const term = (searchInput.value || "").toLowerCase();
+        if (!term) {
+          filteredUsers = allUsers.slice();
+        } else {
+          filteredUsers = allUsers.filter(u =>
+            (u.full_name && u.full_name.toLowerCase().includes(term)) ||
+            (u.email && u.email.toLowerCase().includes(term))
+          );
+        }
+        currentPage = 1;
+        renderTable();
+        renderPager();
+      }
+
+      searchInput.addEventListener("input", () => {
+        applySearch();
+      });
+
+      const createBtn = document.getElementById("btnCreate");
+      createBtn.addEventListener("click", async () => {
+        const fd = new FormData(form);
+        const fullName = fd.get("fullName").trim();
+        const email = fd.get("email").trim().toLowerCase();
+        const role = fd.get("role");
+        const password = fd.get("password");
+
+        form.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
+        form.querySelectorAll('.error-message').forEach(el => el.remove());
+
+        let hasError = false;
+
+        if (!fullName) {
+          form.querySelector('[name="fullName"]').classList.add('input-error');
+          hasError = true;
+        }
+        if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+          form.querySelector('[name="email"]').classList.add('input-error');
+          hasError = true;
+        }
+        if (!password || password.length < 6) {
+          const passInput = form.querySelector('[name="password"]');
+          passInput.classList.add('input-error');
+          const errorMsg = document.createElement('div');
+          errorMsg.className = 'error-message';
+          errorMsg.textContent = 'Password must be at least 6 characters';
+          passInput.parentElement.appendChild(errorMsg);
+          hasError = true;
+        }
+
+        if (hasError) {
+          UI.showToast("Please fix the errors in the form", 'error');
+          return;
+        }
+
+        UI.setButtonLoading(createBtn, true);
+        try {
+          await api.adminCreateUser(fullName, email, role, password);
+          UI.showToast(`User ${fullName} created successfully`, 'success');
+          form.reset();
+          await refreshUsers();
+        } catch (e) {
+          UI.showToast(e.message || "Failed to create user", 'error');
+        } finally {
+          UI.setButtonLoading(createBtn, false);
+        }
+      });
+
+      refreshUsers();
+    });
+  </script>
 </body>
 </html>

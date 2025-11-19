@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -10,45 +11,10 @@
   <script defer src="../js/auth.js"></script>
   <script defer src="../js/api.js"></script>
   <script defer src="../js/ui.js"></script>
-  <script defer src="../js/chat.js"></script>
-  <title>Messages</title>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      UI.requireAuth();
-      UI.mountNav();
-      Chat.init();
-    });
-  </script>
-  <style>
-    .chat-layout{ display:grid; grid-template-columns: 320px 1fr; gap: var(--space); }
-    @media (max-width: 1000px){ .chat-layout{ grid-template-columns: 1fr; } }
-    .chat-sidebar{ background: var(--bg-elev); border:1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow); overflow:hidden; display:flex; flex-direction:column; }
-    .chat-search{ padding:12px; border-bottom:1px solid var(--border); }
-    .chat-list{ overflow:auto; max-height: calc(70vh + 120px); }
-    .chat-item{ padding:12px 14px; border-bottom:1px solid var(--border); cursor:pointer; display:flex; gap:10px; align-items:center; }
-    .chat-item:hover{ background: var(--brand-50); }
-    .chat-item.active{ background: var(--brand-50); }
-    .chat-badge{ font-size:12px; color: var(--muted); }
-    .chat-pane{ display:flex; flex-direction:column; gap: var(--space); }
-    .chat-thread{ background: var(--bg-elev); border:1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow); display:flex; flex-direction:column; min-height: 60vh; }
-    .chat-thread-header{ padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; justify-content:space-between; }
-    .chat-thread-body{ padding:16px; display:flex; flex-direction:column; gap:12px; overflow:auto; height: 55vh; }
-    .msg{ max-width: 70%; padding:10px 12px; border:1px solid var(--border); border-radius:14px; background:#f8fafc; }
-    .msg.me{ margin-left:auto; background: var(--brand-50); }
-    .msg-meta{ font-size:12px; color: var(--muted); margin-top:4px; }
-    .composer{ padding:12px; border-top:1px solid var(--border); display:flex; gap:10px; }
-    .recipient-pill{ display:inline-flex; align-items:center; gap:6px; background: var(--brand-50); color: var(--brand-700); padding:4px 10px; border-radius:999px; font-size:12px; border:1px solid transparent; }
-    .pill-x{ cursor:pointer; opacity:.7; }
-    .btn-icon{ padding:8px 10px; }
-    /* Modal */
-    .modal{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; background: rgba(0,0,0,.3); }
-    .modal.open{ display:flex; }
-    .modal-card{ background: var(--bg-elev); border:1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow); padding:16px; width: 520px; max-width: calc(100% - 32px); }
-    .list{ border:1px solid var(--border); border-radius: var(--r-md); overflow:hidden; }
-    .list-item{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border); }
-    .list-item:last-child{ border-bottom:none; }
-  </style>
+  <script defer src="../js/chat-ui.js"></script>
+  <title>Messages</title> 
 </head>
+
 <body>
   <div id="nav"></div>
 
@@ -56,56 +22,69 @@
     <div class="header">
       <div>
         <div class="title">Messages</div>
-        <div class="subtitle">Secure chat between instructors and students</div>
+        <div class="subtitle">Instructor ↔ Student secure messaging</div>
       </div>
       <div class="page-actions">
-        <button id="new-thread" class="btn btn-primary" style="display:none;">New Message</button>
-        <button class="btn btn-outline" onclick="Auth.logout()">Log out</button>
+        <button id="new-thread" class="btn btn-primary" style="display:none;">+ New Message</button>
       </div>
     </div>
 
-    <div class="chat-layout">
-      <!-- Sidebar -->
-      <aside class="chat-sidebar">
+    <div class="chat-grid">
+      <aside class="card card-fixed chat-sidebar">
         <div class="chat-search">
-          <input id="search" placeholder="Search conversations…" />
+          <input id="search" class="input" placeholder="Search conversations…" />
         </div>
         <div id="threads" class="chat-list"></div>
       </aside>
 
-      <!-- Thread pane -->
-      <section class="chat-pane">
-        <div class="chat-thread">
-          <div class="chat-thread-header">
-            <div>
-              <div id="thread-title" class="title" style="font-size:18px;">Select a conversation</div>
-              <div id="thread-sub" class="subtitle"></div>
-            </div>
-            <div id="recipients" class="row"></div>
+      <section class="card card-fixed chat-thread">
+        <header class="chat-thread-header">
+          <div class="chat-thread-titles">
+            <div id="thread-title" class="title" style="font-size:18px;">Select a conversation</div>
+            <div id="thread-sub" class="subtitle"></div>
           </div>
-          <div id="messages" class="chat-thread-body"></div>
-          <div class="composer">
-            <input id="msg-input" placeholder="Type your message…" />
-            <button id="send" class="btn btn-primary btn-icon">Send</button>
-          </div>
-        </div>
+          <div id="recipients" class="chat-recipients"></div>
+        </header>
+
+        <main id="messages" class="chat-messages"></main>
+
+        <footer class="chat-composer">
+          <input id="msg-input" class="input chat-input" placeholder="Type your message…" />
+          <button id="send" class="btn btn-primary">Send</button>
+        </footer>
       </section>
     </div>
   </div>
 
-  <!-- Recipients modal (instructor only) -->
-  <div id="recip-modal" class="modal" role="dialog" aria-modal="true">
-    <div class="modal-card">
-      <h3 style="margin:0 0 10px;">New Message</h3>
-      <p class="subtitle">Select students to message (instructor can choose multiple)</p>
-      <div class="list" id="recip-list"></div>
-      <div class="row" style="justify-content:flex-end; margin-top:12px;">
-        <button class="btn btn-outline" onclick="Chat.closeModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="Chat.createThreadFromSelection()">Start</button>
+  <div id="recip-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 640px;">
+      <div class="modal-header">
+        <h2>New Message</h2>
+        <button class="btn-link" id="btnCloseModal"
+          style="font-size: 24px; padding: 0; width: 32px; height: 32px;">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="subtitle" style="margin-top: 0; margin-bottom: 16px;">Select people to start a conversation</p>
+        <input type="text" id="recip-search" class="search-input-modal" placeholder="Search by name or email..." />
+        <div id="recip-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="btnCancelRecip">Cancel</button>
+        <button class="btn btn-primary" id="btnStartThread">Start Conversation</button>
       </div>
     </div>
   </div>
 
   <div class="footer">Student Tracker • Messages</div>
 </body>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+      UI.mountNav();
+      const u = Auth.currentUser();
+      if (!u) location.replace('./index.html');
+      Chat.init();
+    });
+  </script>
+
 </html>

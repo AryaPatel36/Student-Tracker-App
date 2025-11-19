@@ -1,43 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../styles.css" />
-  <script defer src="../js/auth.js"></script>
-  <script defer src="../js/api.js"></script>
-  <script defer src="../js/ui.js"></script>
-
   <title>Student Tracker — Login</title>
-  <script defer>
-    document.addEventListener('DOMContentLoaded', () => {
-      if (Auth.currentUser()) { UI.redirectByRole(Auth.currentUser().role); return; }
-      const form = document.getElementById('login-form');
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = form.email.value.trim();
-        const password = form.password.value;
-        const user = await Auth.fakeLogin(email, password); 
-        Auth.setUser(user);
-        UI.redirectByRole(user.role);
-      });
-    });
-  </script>
-  <script>
-  (function(){
-    try{
-      var t = localStorage.getItem('st_theme') || 'aurora';
-      if(t && t !== 'aurora'){ document.documentElement.setAttribute('data-theme', t); }
-    }catch(e){}
-  })();
-  </script>
+  <link rel="stylesheet" href="../styles.css" />
 </head>
+
 <body>
   <div id="nav"></div>
+
   <div class="container page">
     <div class="header">
       <div>
@@ -47,28 +22,86 @@
       <div class="page-actions"></div>
     </div>
 
-    <div class="card grid-2 grid">
+    <div class="grid grid-2 card fade-in">
       <div>
         <h2>Log in</h2>
-        <form id="login-form" class="grid" style="gap:10px; margin-top:12px;">
-          <label>Email</label>
-          <input required name="email" type="email" placeholder="you@school.edu" />
-          <label>Password</label>
-          <input required name="password" type="password" placeholder="••••••••" />
-          <button class="btn btn-primary">Continue</button>
+        <form id="loginForm" class="grid" style="gap:10px; margin-top:12px;">
+          <label for="email">Email</label>
+          <input id="email" name="email" required type="email" placeholder="you@school.edu" />
+
+          <label for="password">Password</label>
+          <input id="password" name="password" required type="password" placeholder="••••••••" />
+
+          <button type="submit" class="btn btn-primary" id="loginBtn">Continue</button>
+          <p id="loginErr" class="alert error" style="display:none; margin-top:8px;"></p>
         </form>
+
         <p class="alert info" style="margin-top:12px;">
-          Demo emails: <strong>admin@</strong>, <strong>instructor@</strong>, <strong>student@</strong> — any password.
+          <strong>Demo credentials:</strong> Use <strong>admin@</strong>, <strong>instructor@</strong>, or <strong>student@</strong> with any password.
         </p>
       </div>
+
       <div>
-        <h2>Roles</h2>
-        <p><strong>Admin</strong>: manage users</p>
-        <p><strong>Instructor</strong>: manage classes, view roster/attendance</p>
-        <p><strong>Student</strong>: see classes, check-in/out</p>
+        <h2>Roles & Permissions</h2>
+        <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 12px;">
+          <div>
+            <span class="badge badge-danger">Admin</span>
+            <p style="margin-top: 8px; font-size: 0.9rem; color: var(--muted);">Manage users, roles, and system settings</p>
+          </div>
+          <div>
+            <span class="badge badge-info">Instructor</span>
+            <p style="margin-top: 8px; font-size: 0.9rem; color: var(--muted);">Create classes, manage rosters, and view attendance</p>
+          </div>
+          <div>
+            <span class="badge badge-success">Student</span>
+            <p style="margin-top: 8px; font-size: 0.9rem; color: var(--muted);">View classes, check-in/out, and track attendance</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
   <div class="footer">Student Tracker • SaaS UI</div>
+
+  <script defer src="../js/api.js"></script>
+  <script defer src="../js/auth.js"></script>
+  <script defer src="../js/ui.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      UI.mountNav();
+
+      const form = document.getElementById("loginForm");
+      const email = document.getElementById("email");
+      const password = document.getElementById("password");
+      const btn = form?.querySelector('button[type="submit"]');
+
+      const u = Auth.currentUser?.();
+      if (u && Auth.token()) return UI.goToDashboard(u.role);
+
+      form?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const loginBtn = document.getElementById("loginBtn");
+        const errorEl = document.getElementById("loginErr");
+        
+        if (errorEl) errorEl.style.display = "none";
+        
+        UI.setButtonLoading(loginBtn, true);
+        
+        try {
+          const user = await Auth.login(email.value.trim(), password.value);
+          UI.showToast(`Welcome back, ${user.fullName || user.email}!`, 'success', 2000);
+          setTimeout(() => UI.goToDashboard(user.role), 500);
+        } catch (err) {
+          const errorMsg = err?.message || "Login failed. Please check your credentials.";
+          if (errorEl) {
+            errorEl.textContent = errorMsg;
+            errorEl.style.display = "block";
+          }
+          UI.showToast(errorMsg, 'error');
+        } finally {
+          UI.setButtonLoading(loginBtn, false);
+        }
+      });
+    });
+  </script>
 </body>
 </html>
