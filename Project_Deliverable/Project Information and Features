@@ -1,0 +1,58 @@
+0. Project Repository 
+
+Link to GitHub project: GitHub - AryaPatel36/Student-Tracker-App 
+
+1. Team Membership 
+
+Team members: Reo Day, Arya Patel, Michael Hudson, Samuel McCorkel, Johnny Yang 
+
+2. Release Notes 
+
+ Version 1.0 — Student Tracker Application 
+ 
+Release Date: November 2025 
+ 
+This release represents the first full deployment of the Student Tracker Application, implementing all core features required for class check-in/out, attendance monitoring, messaging, and role-based system access. 
+ 
+New Features 
+- Chat/Messaging System 
+- Enables real-time messaging between students and instructors, with support for group-chats and persistent message storage. 
+ 
+Check-In/Check-Out System 
+- Students can check in to a single class at a time. The system records check-in/out timestamps and geolocation (longitude/latitude) for verification. 
+ 
+Attendance Tracking 
+- Automatically logs and stores attendance records linked to each student’s ID, including check-in data and location. 
+ 
+Geolocation Integration 
+- Integrated with Abstract’s IP Geolocation API to validate user location on check-in and check-out. 
+ 
+Class Roster & Enrollment View 
+- Instructors can access class rosters, see student details, and open chat sessions directly from the roster view. 
+ 
+Login/Logout & Authentication 
+- Secure user login with role-based access for Students, Instructors, and Admins. 
+ 
+Navigation Menu 
+- Updated UI navigation menu to provide easy access to messaging, attendance, and class features. 
+
+ 
+
+Improvements 
+- UI refinements for easier navigation. 
+ 
+-More consistent handling of user roles and permissions. 
+ 
+- Enhanced backend structure for message persistence and storing geolocation records. 
+ 
+Bug Fixes 
+- Fixed issue causing duplicate chats to appear in the database. 
+ 
+- Corrected table header formatting in the instructor and admin views. 
+ 
+- Resolved inconsistent username display within chat interfaces. 
+ 
+Known Limitations 
+- Students may only check in to one class at a time. 
+ 
+- Geolocation accuracy may vary depending on IP detection limitations. 

@@ -1,0 +1,227 @@
+6. User Manual 
+
+6.1 Getting Started 
+
+    -Accessing the Application:  
+
+    -Open your web browser (Chrome, Firefox, Safari, or Edge) 
+
+    -Navigate to the application URL provided by your institution 
+
+    -You'll be directed to the login page 
+
+Logging In:  
+
+    -Enter your username and password 
+
+    -Click the "Login" button 
+
+6.2 Student Features 
+
+6.2.1 Dashboard 
+
+    -After logging in, you'll see your student dashboard 
+
+    -View your enrolled classes, recent attendance 
+
+    -Access quick links to check in, view messages, and check attendance history 
+
+6.2.2 Checking In to Class 
+
+    -Navigate to the "Classes" section or click "Check In" from the dashboard 
+
+    -Select the class you're attending from your enrolled classes list 
+
+    -Click the "Check In" button 
+
+    -The system will automatically record your check-in time and location 
+
+    -You'll see a confirmation message when check-in is successful 
+
+    -Note: You can only be checked into one class at a time 
+
+6.2.3 Checking Out of Class 
+
+    -When class is over, go to your active session 
+
+    -Click the "Check Out" button 
+
+    -The system records your check-out time and calculates your attendance duration 
+
+    -You'll receive a confirmation that you've successfully checked out 
+
+6.2.4 Viewing Your Attendance 
+
+    -Click "Attendance" in the navigation menu 
+
+    -View a table showing all your attendance records 
+
+    -See details including class name, date, check-in time, check-out time, and duration 
+
+    -Filter by date range or specific class to find past attendance records 
+
+6.2.5 Messaging 
+
+    -Click "Messages" to access the chat feature 
+
+    -View all your conversations with instructors 
+
+    -Click on a conversation to see the full message history 
+
+    -Type your message in the text box and click "Send" 
+
+    -You can start a new conversation by selecting "New Message" and choosing an instructor 
+
+6.3 Instructor Features 
+
+6.3.1 Dashboard 
+
+    -View all your classes, recent student activity, and attendance statistics 
+
+    -Access quick links to manage classes, view rosters, and check messages 
+
+6.3.2 Managing Classes 
+
+    -Navigate to "Classes" in the menu 
+
+    -Click "Create New Class" to add a class 
+
+    -Fill in the class details: name, section, term, meeting times 
+
+    -Click "Save" to create the class 
+
+    -To edit a class, click the edit icon next to the class name 
+
+    -To delete a class, click the delete icon (note: this will remove all associated data) 
+
+6.3.3 Managing Enrollments 
+
+    -Click on a class to view its details 
+
+    -Go to the "Roster" tab to see all enrolled students 
+
+    -Click "Add Student" to enroll new students in the class 
+
+    -Search for students by name  
+
+    -Select students and click "Enroll" 
+
+    -To remove a student, click the remove icon next to their name 
+
+6.3.4 Viewing Class Attendance 
+
+    -Select a class from your classes list 
+
+    -Click the "Attendance" tab 
+
+    -View a table showing all attendance records for that class 
+
+    -See which students are currently checked in 
+
+6.3.5 Messaging Students 
+
+    -Click "Messages" to access the chat feature 
+
+    -Start a new conversation by clicking "New Message" 
+
+    -Select one or more students to create individual or group conversations 
+
+    -You can also message students directly from the class roster by clicking the message icon next to their name 
+
+    -View conversation history and send messages as needed 
+
+6.4 Administrator Features 
+
+6.4.1 User Management 
+
+    -Navigate to "User Management" in the admin menu 
+
+    -View a list of all users (students, instructors, and other admins) 
+
+    -Click "Add User" to create new accounts 
+
+    -Fill in required information: username, email, password, and role 
+
+    -Edit user information by clicking the edit icon 
+
+    -Delete users by clicking the delete icon (use with caution) 
+
+    -Reset passwords for users who have forgotten their credentials 
+
+6.4.2 System Overview 
+
+    -Access the admin dashboard to see system-wide statistics 
+
+    -View total users, active classes, and attendance metrics 
+
+    -Monitor system activity and usage patterns 
+
+6.4.3 Managing All Classes 
+
+    -View all classes across all instructors 
+
+    -Edit or delete any class if needed 
+
+    -Assign instructors to classes 
+
+    -Manage enrollments across the entire system 
+
+6.5 General Features 
+
+6.5.1 Navigation Menu 
+
+    -The navigation menu on the left (or top, depending on screen size) provides access to all features 
+
+    -Menu options change based on your role:  
+
+    -Students see: Dashboard, Classes, Attendance, Messages 
+
+    -Instructors see: Dashboard, Classes, Attendance, Messages 
+
+    -Admins see: Dashboard, User Management 
+
+6.5.2 Logging Out 
+
+    -Click your profile icon in the top right corner 
+
+    -Select "Logout" 
+
+    -You'll be redirected to the login page 
+
+    -Always log out when using a shared computer 
+
+6.6 Troubleshooting 
+
+Problem: Can't log in 
+
+    -Verify your username and password are correct 
+
+    -Check that Caps Lock is not on 
+
+    -Contact your administrator if the problem persists 
+
+Problem: Can't check in to class 
+
+    -Make sure you're enrolled in the class 
+
+    -Verify you're not already checked into another class 
+
+    -Check that the class session is currently active 
+
+    -Ensure your browser allows location access (if required) 
+
+Problem: Messages not sending 
+
+    -Check your internet connection 
+
+    -Refresh the page and try again 
+
+    -Make sure the recipient exists and you have permission to message them 
+
+Problem: Attendance records not showing 
+
+    -Verify you've selected the correct date range or class filter 
+
+    -Refresh the page to reload data 
+
+    -Contact your instructor if records are still missing 

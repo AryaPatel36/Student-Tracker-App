@@ -1,0 +1,95 @@
+4. Architecture Model and Description (Architectural Design Document) 
+
+4.1 Architecture Model 
+
+The Student Tracker Application uses a layered client-server web architecture that keeps the front-end, back-end logic, database, and external services all separated and organized. 
+
+At the front end, students, instructors, and admins all access the system through a regular web browser. When they click around or submit forms, the browser fires off HTTP requests to the main application server. 
+
+The application server is where all the important business logic lives. It exposes a bunch of REST API endpoints that handle things like logging in and checking permissions, managing classes and enrollments, processing check-ins and check-outs, tracking attendance, and running the messaging/chat features. Basically, whenever a request comes in, the server validates it, makes sure the user has the right permissions, and coordinates between the database and any external APIs that need to be called. 
+
+The database layer stores all the persistent data such as user accounts and their roles, class information and who's enrolled in what, all the chat messages, and attendance records that include timestamps and location coordinates. The application server doesn't talk to the database directly; instead, it goes through a data access layer that abstracts all the low-level SQL stuff. 
+
+There's also an external services layer that integrates the Abstract IP Geolocation API. Whenever a student checks in or out of class, the server sends the student's IP address to this API, which returns approximate geographic coordinates (latitude and longitude). Those coordinates then get saved with the attendance record in the database. 
+
+So, in a typical flow, a user logs in through the web interface, the server authenticates them and figures out their role, and then they can navigate to different features like messaging, viewing class rosters, or checking in. Every action goes from the browser to the application server, which enforces the business rules, queries or updates the database as needed, maybe calls the geolocation API, and finally sends the response back to display in the UI. 
+
+ 
+
+4.2 High-Level Component Description 
+
+The Student Tracker Application is built from a bunch of different components that all work together to make the system run smoothly. 
+
+1. Web Client  
+
+Provides separate role-based views for Students, Instructors, and Administrators, including dashboards, navigation menus, check-in/check-out controls, chat interfaces, attendance views, and class rosters. 
+
+Sends requests to the Application Server via HTTP and renders responses such as updated attendance tables, chat messages, and class information. 
+
+Implements client-side input validation and a user-friendly UI, allowing users to easily access messaging, attendance, and class management features. 
+
+2. Authentication and Role Management Service 
+
+Handles user login/logout, credential verification, and session/token management. 
+
+Determines each user's role (Student, Instructor, Admin) and enforces role-based access control for all protected endpoints. 
+
+Exposes APIs used by other components to check permissions before executing actions such as creating classes, modifying enrollments, or accessing admin features. 
+
+3. Class and Enrollment Management Service 
+
+Manages classes (creation, update, deletion) and the association between classes and enrolled students. 
+
+Provides roster information to the Web Client so instructors can view student lists, open chat sessions from the roster, and manage class membership. 
+
+Ensures data integrity between users, classes, sections/terms, and enrollments in the database. 
+
+4. Check-In/Check-Out and Attendance Service 
+
+Implements the business rules for student check-in and check-out, including enforcing the constraint that a student may only be checked into one class at a time. 
+
+Records attendance events with timestamps, student ID, class ID, and geolocation data. 
+
+Provides aggregated attendance data to the UI for display in instructor and student views. 
+
+5. Geolocation Integration Component 
+
+Acts as an adapter between the Application Server and the Abstract IP Geolocation API. 
+
+Given a client IP at check-in/check-out, calls the external API, parses the response, and returns normalized longitude/latitude and related metadata. 
+
+Handles error conditions and passes usable location information to the Attendance Service for storage. 
+
+6. Chat/Messaging Service 
+
+Manages one-to-one and group chat conversations between students and instructors. 
+
+Stores message content, timestamps, sender/recipient or group identifiers, and conversation metadata in the database for persistence. 
+
+Ensures that duplicate chats are not created between the same participants and provides APIs for retrieving message history for display in the chat UI. 
+
+7. Navigation and UI Layout Component 
+
+Provides a consistent navigation menu and layout structure across all role-based pages (students, instructors, admins). 
+
+Controls which navigation options (e.g., Messaging, Classes, Attendance, User Management) are visible based on the authenticated user's role. 
+
+Improves usability by grouping related features and ensuring quick access to core functions. 
+
+8. Data Access Layer  
+
+Encapsulates all direct interactions with the relational database for entities such as Users, Roles, Classes, Enrollments, Messages, and Attendance Records. 
+
+Provides a clear API for the Application Server's services to query, insert, update, and delete data without dealing with raw SQL in business logic. 
+
+Supports transaction management and consistency across related updates (e.g., updating attendance and geolocation in a single logical operation). 
+
+9. Database  
+
+Persists core domain data: user accounts and roles, class definitions and sections, enrollment relationships, chat messages, and attendance records with associated geolocation and timestamps. 
+
+Enforces referential integrity between tables (e.g., ensuring that attendance records reference valid students and classes). 
+
+Supports queries used for reporting and views, such as "attendance by student," "students in a class," or "recent messages in a chat." 
+
+Together, these components implement the complete Student Tracker Application: the Web Client delivers a role-aware UI; the Application Server coordinates authentication, messaging, class and attendance logic; the Geolocation Integration component connects to the external API; and the Database plus Data Access Layer persist the application's state. 

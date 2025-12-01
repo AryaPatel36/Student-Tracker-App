@@ -1,0 +1,323 @@
+Student Tracker 
+
+Student Tracker is a simple, full-stack demo app for managing classes, enrollments, attendance, and private messages between instructors and students. It includes a Node.js + Express backend with PostgreSQL, and a clean, role-aware frontend built with static HTML/CSS/vanilla JS. 
+
+This repository contains a complete local development setup, plus Docker-friendly artifacts for easier deployments. 
+
+ 
+
+Table of Contents 
+
+Features 
+
+Architecture & Project Layout 
+
+Quick Start — Local Development 
+
+Environment Variables 
+
+Database 
+
+Running With Docker (optional) 
+
+API Endpoints (Overview) 
+
+Frontend notes 
+
+Contributing 
+
+License 
+
+ 
+
+Features 
+
+User management with roles: ADMIN, INSTRUCTOR, STUDENT 
+
+Instructor workflows: create classes, manage roster, view attendance 
+
+Student workflows: list classes, check-in/out with optional geolocation 
+
+Secure messaging (threads + messages) for instructors and students 
+
+JWT-based authentication with route role guards 
+
+DB schema & seed scripts for demo data in db/ 
+
+Dockerfile for containerized backend 
+
+ 
+
+Architecture & Project Layout 
+
+Top-level layout: 
+
+backend/ — Express API with ESM modules 
+
+server.js — App entry point 
+
+routes/ — API route handlers (auth, classes, enrollments, attendance, chat, users, geo) 
+
+middleware/ — auth helpers 
+
+geo/ — IP geolocation helper (optional; Abstract API) 
+
+db.js + config.js — DB pool and config (dotenv) 
+
+Dockerfile — container image for the backend 
+
+student-tracker-frontend/ — Static frontend files 
+
+pages/ — HTML pages (login, admin, instructor, student, classes, chat, checkin, class) 
+
+js/ — client JS (api, auth, ui, chat) 
+
+styles.css — app look & feel 
+
+db/ — schema.sql and seed.sql for database setup 
+
+DEPLOYMENT.md — deployment and dev guidance (keep this as canonical deploy reference) 
+
+ 
+
+Quick Start — Local Development 
+
+These instructions assume you have Node.js (v18+) and Docker (optional) available. 
+
+1) Start a PostgreSQL database (Docker, recommended) 
+
+Open PowerShell and run: 
+
+# create a Postgres container (replace password/db names as needed) 
+docker run -d --name st-postgres -e POSTGRES_USER=st_user -e POSTGRES_PASSWORD=st_pass -e POSTGRES_DB=studenttracker -p 5432:5432 postgres:15 
+  
+
+Or use your existing Postgres instance and point DATABASE_URL accordingly. 
+
+2) Prepare backend environment 
+
+Create a .env file in backend/ with at least: 
+
+DATABASE_URL=postgres://st_user:st_pass@localhost:5432/studenttracker 
+JWT_SECRET=replace-with-a-secure-random-string 
+PORT=3000 
+# OPTIONAL: ABSTRACT_API_KEY=your_abstract_api_key (for IP geolocation) 
+NODE_ENV=development 
+  
+
+Do not commit .env. The repo already includes .gitignore which excludes it. 
+
+3) Initialize the database schema & seed data 
+
+Using psql run db/schema.sql and db/seed.sql: 
+
+# Example using psql installed locally 
+psql "postgres://st_user:st_pass@localhost:5432/studenttracker" -f db/schema.sql 
+psql "postgres://st_user:st_pass@localhost:5432/studenttracker" -f db/seed.sql 
+  
+
+If you don't have psql on the host, run inside the Postgres container: 
+
+# copy files into container and run them 
+docker cp db/schema.sql st-postgres:/tmp/schema.sql 
+docker cp db/seed.sql st-postgres:/tmp/seed.sql 
+docker exec -it st-postgres bash -c "psql -U st_user -d studenttracker -f /tmp/schema.sql && psql -U st_user -d studenttracker -f /tmp/seed.sql" 
+  
+
+4) Start the backend in development mode 
+
+cd backend 
+npm install 
+npm run dev 
+  
+
+This uses nodemon to restart the server on file changes. 
+
+The API starts on http://localhost:3000 by default. You can verify with: 
+
+curl http://localhost:3000/api/health 
+  
+
+5) Serve frontend files 
+
+The frontend is static files. For quick local testing there's no build step — serve the files with a static server or open the student-tracker-frontend/pages/index.html in your browser. 
+
+Quick example using npm's serve (or npx serve): 
+
+# From repo root or student-tracker-frontend/ 
+cd student-tracker-frontend 
+npx serve . -l 5000 
+# open http://localhost:5000/pages/index.html 
+  
+
+If the frontend runs on a different origin than the API, the backend is CORS-enabled by default. 
+
+ 
+
+Environment Variables 
+
+Add these to backend/.env (some are required): 
+
+DATABASE_URL — Postgres connection string (required) 
+
+JWT_SECRET — strong secret for signing JWTs (required) 
+
+PORT — API port (default 3000) 
+
+ABSTRACT_API_KEY — Optional: key for IP geolocation (used by geo endpoint) 
+
+NODE_ENV — development or production (default development) 
+
+Refer to backend/config.js for how these are used. 
+
+ 
+
+Database 
+
+Schema and seed SQL live under db/: 
+
+db/schema.sql — DDL for the app schema 
+
+db/seed.sql — Inserts demo users, a sample class, enrollments, and a sample chat thread 
+
+The schema uses types and constraints to support: users, classes, enrollments, attendance, threads, messages, and read receipts. 
+
+ 
+
+Running With Docker (optional) 
+
+Backend container 
+
+The backend Dockerfile is located in backend/ and exposes port 3001 in the container. You can run the container and map to a host port. Ensure the container can reach a Postgres database or use a docker-compose with a Postgres service. 
+
+cd backend 
+# build image 
+docker build -t studenttracker-backend . 
+# run (assuming network and DATABASE_URL are set) 
+docker run -p 3000:3001 --env-file .env --name st-api studenttracker-backend 
+  
+
+For a local compose setup, see DEPLOYMENT.md for a recommended docker-compose snippet. 
+
+ 
+
+API Endpoints (Overview) 
+
+Most endpoints live under /api/*. Important ones include: 
+
+Auth 
+
+POST /api/auth/login — login (returns JWT and user) 
+
+POST /api/auth/register — create user and sign in 
+
+Users (admin-only for the full list) 
+
+GET /api/users — list users (ADMIN only) 
+
+POST /api/users — create user (ADMIN only) 
+
+GET /api/users/students — list students 
+
+GET /api/users/instructors — list instructors 
+
+GET /api/users/people — students + instructors for selection 
+
+Classes 
+
+GET /api/classes — instructor's classes (query: instructorId) 
+
+GET /api/classes/mine — student's classes 
+
+GET /api/classes/:id — class details 
+
+POST /api/classes — create a class (INSTRUCTOR/ADMIN) 
+
+DELETE /api/classes/:id — delete a class 
+
+Enrollments 
+
+GET /api/enrollments/:classId — roster (INSTRUCTOR/ADMIN) 
+
+POST /api/enrollments — enroll student 
+
+DELETE /api/enrollments — unenroll 
+
+Attendance 
+
+POST /api/attendance/checkin — student check-in 
+
+POST /api/attendance/checkout — student check-out 
+
+GET /api/attendance/:classId — instructor fetch attendance for a class 
+
+GET /api/attendance/my/:classId — student fetch my attendance 
+
+Chat 
+
+GET /api/chat/threads — all threads user participates in 
+
+GET /api/chat/threads/:id/messages — messages in a thread 
+
+POST /api/chat/threads/:id/messages — send a message 
+
+POST /api/chat/threads — create thread (DIRECT or GROUP) 
+
+Geolocation 
+
+GET /api/geo/ip — Lookup IP geolocation (optional; uses Abstract API key) 
+
+These are enforced by role-based middleware in backend/middleware/auth.js. 
+
+ 
+
+Frontend Notes 
+
+The frontend is a static set of pages in student-tracker-frontend/pages/. 
+
+Primary JS utilities live in student-tracker-frontend/js/: api.js, auth.js, ui.js, chat utilities. 
+
+Client-side login stores JWT in localStorage under st_token and user metadata under st_user. 
+
+The UI expects API to be available at http://localhost:3000 by default, set in student-tracker-frontend/js/api.js. 
+
+To run the frontend while developing the backend locally, serve the static site as noted above. 
+
+ 
+
+Contributing 
+
+Contributions are welcome. Some ideas: 
+
+-Add unit tests and integration tests for API routes 
+
+-Improve UI/UX, accessibility, and layout 
+
+-Add pagination and filtering on large datasets 
+
+-Add strong validation and rate limiting on API 
+
+-Add integration tests and CI pipeline 
+
+When contributing, please follow a pull request workflow and include a description, testing steps and any new environment variables or schema migrations. 
+
+ 
+
+Security & Secrets 
+
+Never commit .env or any secrets to source control. 
+
+Use strong JWT_SECRET values in production and rotate when needed. 
+
+Store production secrets securely (Azure Key Vault, AWS Secrets Manager, etc.) and set TLS/SSL settings for PG connections (NODE_ENV=production flips PG_SSL on). 
+
+ 
+
+License 
+
+This project is provided as-is for demo and learning purposes. Please see the LICENSE file if present or add an appropriate license if using this in production. 
+
+ 
+
+More Info 
+For troubleshooting, check backend logs and ensure the DB is initialized with db/schema.sql and db/seed.sql. 

@@ -1,0 +1,405 @@
+A concise, practical guide to deploying the Student Tracker application (backend + frontend). This document covers local development, Docker-based deployments, an example `docker-compose` configuration, and notes for deploying to cloud platforms. 
+
+ 
+
+Overview: 
+
+- Repo layout: Backend API in `backend/`; frontend static site in `student-tracker-frontend/`; DB SQL under `db/`. 
+
+- Backend: Node.js (ESM), Express, PostgreSQL, JWT auth. Dockerfile at `backend/Dockerfile`. 
+
+- Frontend: Vanilla JS, HTML, CSS. Served as static files. 
+
+ 
+
+Prerequisites 
+
+- Node.js (v18+ recommended) and npm 
+
+- Docker & Docker Compose (optional but recommended for local reproducible runs) 
+
+- PostgreSQL (local install) or Docker image 
+
+- A PostgreSQL connection string and JWT secret 
+
+ 
+
+Environment Variables 
+
+Place a `.env` in `backend/` (not committed). Required values: 
+
+- `DATABASE_URL` — Postgres connection string (e.g. `postgres://user:pass@localhost:5432/studenttracker`) 
+
+- `JWT_SECRET` — strong secret for signing JWTs 
+
+Optional: 
+
+- `PORT` — API port (default 3000) 
+
+- `ABSTRACT_API_KEY` — optional API key for IP geolocation 
+
+- `NODE_ENV` — `development` or `production` 
+
+ 
+
+ 
+
+1) Local development (recommended flow) 
+
+- Start a Postgres container (PowerShell): 
+
+```powershell 
+
+# create a network and run Postgres (change password/db as needed) 
+
+docker run -d --name st-postgres -e POSTGRES_USER=st_user -e POSTGRES_PASSWORD=st_pass -e POSTGRES_DB=studenttracker -p 5432:5432 postgres:15 
+
+``` 
+
+ 
+
+- Prepare `backend/.env` with at least: 
+
+```text 
+
+DATABASE_URL=postgres://st_user:st_pass@localhost:5432/studenttracker 
+
+JWT_SECRET=replace-with-a-secure-random-string 
+
+PORT=3000 
+
+# OPTIONAL: ABSTRACT_API_KEY=your_key_here 
+
+``` 
+
+ 
+
+- Install backend deps and start in dev mode: 
+
+```powershell 
+
+cd backend 
+
+npm install 
+
+npm run dev    # uses nodemon, restarts on change 
+
+``` 
+
+ 
+
+- Initialize database schema and seed (use `psql` from your machine or run inside the container): 
+
+```powershell 
+
+# From host (requires psql client) 
+
+psql "postgres://st_user:st_pass@localhost:5432/studenttracker" -f db/schema.sql 
+
+psql "postgres://st_user:st_pass@localhost:5432/studenttracker" -f db/seed.sql 
+
+``` 
+
+ 
+
+If you don't have `psql`, run these inside the Postgres container: 
+
+```powershell 
+
+docker cp db/schema.sql st-postgres:/tmp/schema.sql 
+
+docker cp db/seed.sql st-postgres:/tmp/seed.sql 
+
+docker exec -it st-postgres bash -c "psql -U st_user -d studenttracker -f /tmp/schema.sql && psql -U st_user -d studenttracker -f /tmp/seed.sql" 
+
+``` 
+
+ 
+
+- Frontend: serve static files from `student-tracker-frontend/`. For quick local testing you can use an npm static server or open the files directly in the browser (CORS is not needed for static files if API is on `http://localhost:3000`). 
+
+ 
+
+Example with `serve` (install globally or use `npx`): 
+
+```powershell 
+
+# from repo root 
+
+cd student-tracker-frontend 
+
+npx serve -l 8080 . 
+
+# Open http://localhost:8080/pages/index.html 
+
+``` 
+
+2) Run backend in Docker 
+
+- Build image (from `backend/`): 
+
+```powershell 
+
+cd backend 
+
+docker build -t studenttracker-backend:latest . 
+
+``` 
+
+ 
+
+- Run container (linking to a Postgres service): 
+
+```powershell 
+
+# Example: run Postgres (if not running) 
+
+docker run -d --name st-postgres -e POSTGRES_USER=st_user -e POSTGRES_PASSWORD=st_pass -e POSTGRES_DB=studenttracker -p 5432:5432 postgres:15 
+
+ 
+
+# Run backend, passing env vars; adjust host for DATABASE_URL as needed 
+
+docker run -d --name st-backend -e DATABASE_URL="postgres://st_user:st_pass@host.docker.internal:5432/studenttracker" -e JWT_SECRET="super-secret" -p 3000:3000 studenttracker-backend:latest 
+
+``` 
+
+Note: when running Docker on Windows, use `host.docker.internal` so the container can reach services running on the host. 
+
+ 
+
+3) docker-compose (recommended for local multi-service setup) 
+
+Create a `docker-compose.yml` at repo root (example): 
+
+```yaml 
+
+version: '3.8' 
+
+services: 
+
+  db: 
+
+    image: postgres:15 
+
+    environment: 
+
+      POSTGRES_USER: st_user 
+
+      POSTGRES_PASSWORD: st_pass 
+
+      POSTGRES_DB: studenttracker 
+
+    volumes: 
+
+      - db-data:/var/lib/postgresql/data 
+
+    ports: 
+
+      - "5432:5432" 
+
+ 
+
+  backend: 
+
+    build: ./backend 
+
+    environment: 
+
+      DATABASE_URL: "postgres://st_user:st_pass@db:5432/studenttracker" 
+
+      JWT_SECRET: "replace-with-a-secure-secret" 
+
+      PORT: "3000" 
+
+      NODE_ENV: "development" 
+
+    ports: 
+
+      - "3000:3000" 
+
+    depends_on: 
+
+      - db 
+
+ 
+
+  # optional: a tiny static server to serve frontend files 
+
+  frontend: 
+
+    image: node:20 
+
+    working_dir: /app 
+
+    volumes: 
+
+      - ./student-tracker-frontend:/app 
+
+    command: ["npx","serve","-s","/app/pages","-l","8080"] 
+
+    ports: 
+
+      - "8080:8080" 
+
+ 
+
+volumes: 
+
+  db-data: 
+
+``` 
+
+ 
+
+Run with PowerShell: 
+
+```powershell 
+
+# from repo root 
+
+docker compose up --build 
+
+``` 
+
+ 
+
+After compose starts, run schema and seed once (use a one-off container with `psql` or `docker exec` into the `db` service): 
+
+```powershell 
+
+# copy SQL into db and apply (example) 
+
+docker cp db/schema.sql $(docker ps -qf "name=yourproject_db_1"):/tmp/schema.sql 
+
+# or directly exec psql 
+
+docker exec -it <db-container-name> psql -U st_user -d studenttracker -f /tmp/schema.sql 
+
+``` 
+
+ 
+
+ 
+
+4) Production deploy options & recommendations 
+
+This project can be deployed in several ways. Below are short recommended approaches. 
+
+ 
+
+- Managed container hosts (recommended): Render, Fly, DigitalOcean App Platform, or Azure Container Apps — build and deploy the `studenttracker-backend` container and use a managed Postgres add-on. 
+
+- Platform-as-a-Service: Heroku (legacy but simple) — use `DATABASE_URL` provided by Heroku Postgres and set `JWT_SECRET` in config vars. 
+
+- Azure App Service: Deploy container or Node app. Ensure `DATABASE_URL` and `JWT_SECRET` are stored in App Settings and `PG_SSL` is handled if using managed Postgres. 
+
+- Kubernetes: Use manifests/secrets; deploy backend and a managed Postgres or operator; use readiness/liveness probes. 
+
+ 
+
+Key production notes: 
+
+- Use a managed Postgres for backups and high availability. 
+
+- Set `NODE_ENV=production` and use a secure `JWT_SECRET` (rotate if compromised). 
+
+- If your DB requires SSL (e.g., many managed Postgres providers), set `NODE_ENV=production` so `config.js` uses `PG_SSL` config. Confirm `PG_SSL` handling in `backend/config.js`. 
+
+- Do not enable `ABSTRACT_API_KEY` publicly unless needed; store it in secrets. 
+
+- Use HTTPS (TLS) at load balancer / platform level. 
+
+ 
+
+ 
+
+5) Database migrations & seeding 
+
+- The repo includes `db/schema.sql` and `db/seed.sql` for bootstrapping. For production, prefer a migration tool (Flyway, Liquibase, or node-pg-migrate) rather than applying raw SQL files repeatedly. 
+
+- To apply schema and seed (example using `psql`): 
+
+```powershell 
+
+psql "${env:DATABASE_URL}" -f db/schema.sql 
+
+psql "${env:DATABASE_URL}" -f db/seed.sql 
+
+``` 
+
+ 
+
+6) Health checks & verification 
+
+- Backend health endpoint: `GET /api/health` — checks DB connectivity and server. 
+
+- After starting services, visit `http://localhost:3000/api/health` to confirm API and DB are reachable. 
+
+ 
+
+7) Security & operational checklist 
+
+- Use strong `JWT_SECRET` and limit token lifetime if needed. 
+
+- Use HTTPS and secure cookies if adding sessions. 
+
+- Ensure Postgres is not publicly accessible; allow only app host or private network access. 
+
+- Rotate secrets and use a secret manager in production. 
+
+- Monitor logs and set up periodic backups for the database. 
+
+ 
+
+8) Troubleshooting 
+
+- `ECONNREFUSED` to Postgres: check `DATABASE_URL`, container status, and port mappings. 
+
+- Token errors: confirm `JWT_SECRET` matches the value used when tokens were issued. 
+
+- Docker on Windows: use `host.docker.internal` to reach host services from containers. 
+
+ 
+
+Appendix — Quick commands 
+
+ 
+
+Start local DB + backend (compose): 
+
+```powershell 
+
+# from repo root 
+
+docker compose up --build 
+
+``` 
+
+ 
+
+Run backend only (local node): 
+
+```powershell 
+
+cd backend 
+
+npm install 
+
+# create backend/.env then 
+
+npm run dev 
+
+``` 
+
+ 
+
+Apply DB schema & seed (psql): 
+
+```powershell 
+
+psql "postgres://st_user:st_pass@localhost:5432/studenttracker" -f db/schema.sql 
+
+psql "postgres://st_user:st_pass@localhost:5432/studenttracker" -f db/seed.sql 
+
+``` 

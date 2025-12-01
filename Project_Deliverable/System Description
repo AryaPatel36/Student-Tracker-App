@@ -1,0 +1,64 @@
+5. System Description  
+
+5.1 Features and Functionality Included 
+
+-The system includes the following key features: 
+
+-Chat/Messaging System between Instructors and Students 
+
+-Check-In/Out Feature 
+
+-Attendance Tracking 
+
+-Geolocation 
+
+-Class Roster and Enrollment 
+
+-Login/Logout 
+
+-Navigation 
+
+-User Roles for Students/Instructors/Admins 
+
+-User-Friendly UI 
+
+5.2 Feature Descriptions 
+
+Chat/Messaging System 
+
+    This feature enables Instructors and Students to communicate through a chat/messaging system. The system stores messages in the chat and allows group chat creation. 
+
+Check-In/Out Feature 
+
+    This feature enables users (Students) to check in to a single class. Check-ins for multiple classes at once are unavailable. Users must check-out before checking-in again. The system tracks check-in/out time, tracks longitude and latitude on check-in/out, and tracks and displays student ID. 
+
+Attendance Tracking 
+
+    Student attendance is tracked within a database, storing records of attendance events with timestamps, student ID, class ID, and geolocation data. 
+
+ 
+
+Geolocation 
+
+    Utilizes Abstract's IP Geolocation API that determines the location and other details of IP addresses. 
+
+Class Roster and Enrollment 
+
+    Instructors can view the class roster and chat or view details on students enrolled in their courses. 
+
+    Login/Logout 
+
+    Users can login and logout with assigned user roles, authentication, and IDs. 
+
+Navigation 
+
+    User access to messaging, attendance, and class features through the navigation menu. 
+
+User Roles 
+The system implements three distinct user roles with specific permissions: 
+
+    Students: Can check in/out of their enrolled classes and communicate with Instructors and other students through the messaging system. 
+
+    Instructors: Can create and delete classes, add or remove students from their classes, and communicate with students and other instructors through the messaging system.  
+
+    Administrators: Can create or remove users such as instructors or students. 

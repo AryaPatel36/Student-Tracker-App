@@ -1,0 +1,178 @@
+7. Developer Manual
+7.1 Development Environment Setup
+7.1.1 Prerequisites
+-Node.js (v14 or higher) and npm
+
+-PostgreSQL database server
+
+-Git for version control
+
+-Code editor -VS Code
+
+-Abstract IP Geolocation API key
+7.1.2 Installation Steps
+-Clone the repository: git clone https://github.com/AryaPatel36/Student-Tracker-App.git
+
+-Navigate to project directory: cd StudentTrackerApp
+
+-Install dependencies: npm install
+
+-Create database: student_tracker
+
+-Run schema script: mysql -u username -p student_tracker < database/schema.sql
+
+-Create .env file with:
+    DB_HOST=localhost
+    DB_USER=your_db_user
+    DB_PASSWORD=your_db_password
+    DB_NAME=student_tracker
+    GEOLOCATION_API_KEY=your_api_key
+    SESSION_SECRET=your_secret
+    PORT=3000
+
+-Start application: npm run dev
+7.2 Project Structure
+studenttrackerapp/
+├── backend/                    
+│   ├── geo/                    
+│   ├── middleware/             
+│   ├── node_modules/         
+│   ├── routes/                
+│   ├── .dockerignore
+│   ├── .env                    
+│   ├── config.js               
+│   ├── db.js                   
+│   ├── Dockerfile
+│   ├── package-lock.json
+│   ├── package.json
+│   └── server.js              
+│
+├── db/                         
+│   └── schema.sql (or similar)
+│
+├── node_modules/              
+│
+├── Project_Deliverable/        
+│
+├── student-tracker-frontend/   
+|    ├── js/                     
+|    ├── pages/                  
+|    ├── README.md
+|    ├── styles.css             
+├── .env                    
+├── .gitignore
+└── docker-compose.yml                      
+
+7.3 Running the Application
+7.3.1 Development Mode
+-Start backend: npm run dev
+
+-Access frontend: http://localhost:3001
+
+-Access API: http://localhost:3000
+7.3.2 Production Mode
+
+-Start server: npm run dev
+7.4 API Documentation
+7.4.1 Authentication Endpoints
+POST /api/auth/register - Register new user
+POST /api/auth/login - User login
+POST /api/auth/logout - User logout
+7.4.2 User Management Endpoints
+GET /api/users - Get all users (Admin only)
+GET /api/users/:id - Get user by ID
+PUT /api/users/:id - Update user
+DELETE /api/users/:id - Delete user (Admin only)
+7.4.3 Class Management Endpoints
+GET /api/classes - Get all classes
+POST /api/classes - Create class (Instructor/Admin)
+GET /api/classes/:id - Get class details
+PUT /api/classes/:id - Update class
+DELETE /api/classes/:id - Delete class
+7.4.4 Enrollment Endpoints
+GET /api/enrollments/:classId - Get enrolled students
+POST /api/enrollments - Enroll student
+DELETE /api/enrollments/:id - Remove enrollment
+7.4.5 Attendance Endpoints
+POST /api/attendance/checkin - Check in to class
+POST /api/attendance/checkout - Check out of class
+GET /api/attendance/student/:studentId - Get student attendance
+GET /api/attendance/class/:classId - Get class attendance
+7.4.6 Messaging Endpoints
+GET /api/messages - Get all conversations
+GET /api/messages/:conversationId - Get messages
+POST /api/messages - Send message
+POST /api/conversations - Create conversation
+7.5 Database Schema
+7.5.1 Users Table
+-id, username, email, password_hash, role, created_at, updated_at
+7.5.2 Classes Table
+-id, name, section, term, instructor_id, created_at
+7.5.3 Enrollments Table
+-id, student_id, class_id, enrolled_at
+7.5.4 Attendance Table
+-id, student_id, class_id, check_in_time, check_out_time, latitude, longitude, ip_address
+7.5.5 Messages Table
+-id, sender_id, recipient_id, conversation_id, content, timestamp, is_read
+7.5.6 Conversations Table
+-id, created_at, updated_at
+
+7.6 Key Implementation Details
+7.6.1 Authentication
+-Uses JWT tokens for session management
+-Token verified in Authorization header
+-Role-based access control enforced via middleware
+
+7.6.2 Geolocation Integration
+-Calls Abstract API with user's IP address
+-Returns latitude and longitude coordinates
+-Stored with attendance records
+
+7.6.3 Check-In Logic
+-Enforces "one class at a time" rule
+-Checks for existing active attendance before allowing check-in
+-Captures geolocation data automatically
+
+7.7 Adding New Features
+7.7.1 To add a new API endpoint
+-Create route handler in /server/routes/
+-Implement logic in /server/controllers/
+-Add database queries in /server/models/
+
+7.7.2 To add a new UI component
+-Create component in /client/src/components/
+-Add routing in /client/src/App.js
+-Connect to API in /client/src/services/
+
+7.8 Testing
+-Run backend tests: npm test
+-Run frontend tests: cd client && npm test
+-Test routes with Postman or curl
+
+7.9 Common Issues and Troubleshooting
+Problem: Database connection errors
+-Verify .env credentials are correct
+-Ensure database server is running
+
+Problem: CORS errors
+-Check CORS middleware configuration
+Problem: Geolocation API failures
+-Verify API key is valid
+-Check rate limits
+
+Problem: Authentication issues
+-Clear cookies and cache
+
+-Verify SESSION_SECRET is set
+7.10 Deployment
+7.10.1 Hosting Options
+-Backend: Heroku, AWS, DigitalOcean
+-Frontend: Netlify, Vercel
+-Database: AWS RDS, Heroku Postgres
+
+7.10.2 Deployment Steps
+-Set environment variables on hosting platform
+-Build frontend: npm run build
+-Configure production database
+-Set up SSL for HTTPS
+-Test all features in production
